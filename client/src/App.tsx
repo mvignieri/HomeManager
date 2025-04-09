@@ -1,6 +1,5 @@
 import { useState, useEffect } from "react";
 import { Route, Switch } from "wouter";
-import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/home";
 import CalendarPage from "@/pages/calendar";
@@ -89,7 +88,6 @@ function App() {
     return (
       <div className="flex items-center justify-center h-screen">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-        <Toaster />
       </div>
     );
   }
@@ -123,24 +121,20 @@ function App() {
             </div>
           </CardContent>
         </Card>
-        <Toaster />
       </div>
     );
   }
 
   // Show main application if authenticated
   return (
-    <>
-      <Switch>
-        <Route path="/" component={HomePage} />
-        <Route path="/calendar" component={CalendarPage} />
-        <Route path="/smart-home" component={SmartHomePage} />
-        <Route path="/analytics" component={AnalyticsPage} />
-        <Route path="/tasks" component={TasksPage} />
-        <Route component={NotFound} />
-      </Switch>
-      <Toaster />
-    </>
+    <Switch>
+      <Route path="/" component={HomePage} />
+      <Route path="/calendar" component={CalendarPage} />
+      <Route path="/smart-home" component={SmartHomePage} />
+      <Route path="/analytics" component={AnalyticsPage} />
+      <Route path="/tasks" component={TasksPage} />
+      <Route component={NotFound} />
+    </Switch>
   );
 }
 
