@@ -1,0 +1,100 @@
+import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
+import { User } from 'firebase/auth';
+import { auth } from '@/lib/firebase';
+import { useLocation } from 'wouter';
+import { useQuery } from '@tanstack/react-query';
+import { Task, House, User as UserModel } from '@shared/schema';
+import { queryClient } from '@/lib/queryClient';
+
+// Make queryClient globally available for WebSocket
+window.queryClient = queryClient;
+
+interface AppContextProps {
+  user: User | null;
+  loading: boolean;
+  currentHouse: House | null;
+  setCurrentHouse: (house: House | null) => void;
+  houses: House[];
+  refreshHouses: () => void;
+}
+
+const AppContext = createContext<AppContextProps>({
+  user: null,
+  loading: true,
+  currentHouse: null,
+  setCurrentHouse: () => {},
+  houses: [],
+  refreshHouses: () => {},
+});
+
+export const useAppContext = () => useContext(AppContext);
+
+export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [currentHouse, setCurrentHouse] = useState<House | null>(null);
+  const [, setLocation] = useLocation();
+
+  // Fetch houses for the current user
+  const { data: houses = [], refetch: refreshHouses } = useQuery<House[]>({
+    queryKey: ['/api/houses'],
+    enabled: !!user,
+  });
+
+  // Set the first house as current if none is selected and houses are available
+  useEffect(() => {
+    if (houses.length > 0 && !currentHouse) {
+      setCurrentHouse(houses[0]);
+    }
+  }, [houses, currentHouse]);
+
+  // Listen for auth state changes
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
+      if (authUser) {
+        // User is signed in
+        setUser(authUser);
+        
+        // Check if the user exists in our database, if not create them
+        try {
+          const response = await fetch('/api/user/check', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              uid: authUser.uid,
+              email: authUser.email,
+              displayName: authUser.displayName,
+              photoURL: authUser.photoURL,
+            }),
+          });
+          
+          if (!response.ok) {
+            throw new Error('Failed to verify user');
+          }
+        } catch (error) {
+          console.error('Error checking user:', error);
+        }
+      } else {
+        // User is signed out
+        setUser(null);
+        setCurrentHouse(null);
+      }
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  const value = {
+    user,
+    loading,
+    currentHouse,
+    setCurrentHouse,
+    houses,
+    refreshHouses,
+  };
+
+  return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
+};
