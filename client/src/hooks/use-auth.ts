@@ -1,11 +1,10 @@
-import { useState, useEffect, useCallback } from 'react';
-import { User } from 'firebase/auth';
-import { auth, signInWithGoogle, signOut, handleRedirectResult } from '@/lib/firebase';
+import { useCallback } from 'react';
+import { signInWithGoogle, signOut } from '@/lib/firebase';
 import { useToast } from './use-toast';
-import { useAppContext } from '@/context/app-context';
+import { useAuth as useAuthContext } from '@/context/auth-context';
 
 export function useAuth() {
-  const { user, loading } = useAppContext();
+  const { user, loading, error } = useAuthContext();
   const { toast } = useToast();
 
   const login = useCallback(async () => {
@@ -36,27 +35,10 @@ export function useAuth() {
     }
   }, [toast]);
 
-  // Handle redirect on initial load
-  useEffect(() => {
-    const checkRedirect = async () => {
-      try {
-        await handleRedirectResult();
-      } catch (error: any) {
-        console.error('Redirect error:', error);
-        toast({
-          title: 'Authentication Error',
-          description: error.message || 'Failed to complete authentication',
-          variant: 'destructive',
-        });
-      }
-    };
-
-    checkRedirect();
-  }, [toast]);
-
   return {
     user,
     loading,
+    error,
     login,
     logout,
   };
