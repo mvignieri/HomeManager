@@ -12,6 +12,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { auth, signInWithGoogle, handleRedirectResult } from "@/lib/firebase";
 import { User } from "firebase/auth";
+import "@/lib/firebase-config-test";
 
 function App() {
   const [user, setUser] = useState<User | null>(null);
