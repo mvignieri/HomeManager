@@ -50,7 +50,18 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Listen for auth state changes
   useEffect(() => {
+    // Set a timeout to exit loading state in case Firebase auth doesn't respond
+    const timeoutId = setTimeout(() => {
+      if (loading) {
+        console.log('Firebase auth timeout reached, showing login screen');
+        setLoading(false);
+      }
+    }, 2000);
+    
     const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
+      // Clear the timeout since we received a response
+      clearTimeout(timeoutId);
+      
       if (authUser) {
         // User is signed in
         setUser(authUser);
@@ -84,8 +95,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       setLoading(false);
     });
 
-    return () => unsubscribe();
-  }, []);
+    return () => {
+      clearTimeout(timeoutId);
+      unsubscribe();
+    };
+  }, [loading]);
 
   const value = {
     user,
