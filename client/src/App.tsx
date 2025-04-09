@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Route, Switch } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
@@ -9,12 +9,56 @@ import AnalyticsPage from "@/pages/analytics";
 import TasksPage from "@/pages/tasks";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
+import { useToast } from "@/hooks/use-toast";
+import { auth, signInWithGoogle, handleRedirectResult } from "@/lib/firebase";
+import { User } from "firebase/auth";
 
 function App() {
-  // Simple state-based auth that will definitely work
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { toast } = useToast();
 
-  if (!isLoggedIn) {
+  // Handle Firebase auth state changes
+  useEffect(() => {
+    const unsubscribe = auth.onAuthStateChanged((authUser) => {
+      setUser(authUser);
+      setLoading(false);
+    });
+
+    // Attempt to handle redirect result
+    handleRedirectResult().catch(error => {
+      console.error("Error handling redirect:", error);
+    });
+
+    return () => unsubscribe();
+  }, []);
+
+  // Handle login with Google
+  const login = async () => {
+    try {
+      await signInWithGoogle();
+    } catch (error) {
+      console.error("Login error:", error);
+      toast({
+        title: "Login Error",
+        description: "Failed to sign in with Google",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Show loading spinner
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-screen">
+        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <Toaster />
+      </div>
+    );
+  }
+
+  // Show login page if not authenticated
+  if (!user) {
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-indigo-500 to-purple-600 p-6">
         <Card className="w-full max-w-md bg-white rounded-xl shadow-lg">
@@ -26,7 +70,7 @@ function App() {
             
             <div className="space-y-4">
               <Button
-                onClick={() => setIsLoggedIn(true)}
+                onClick={login}
                 variant="outline"
                 className="w-full flex items-center justify-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
               >
@@ -47,6 +91,7 @@ function App() {
     );
   }
 
+  // Show main application if authenticated
   return (
     <>
       <Switch>
