@@ -1,126 +1,293 @@
 import React, { useState } from 'react';
-import Navbar from '@/components/layout/navbar';
-import BottomNav from '@/components/layout/bottom-nav';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
-import { useSmartHome } from '@/hooks/use-smart-home';
-import TemperatureChart from '@/components/charts/temperature-chart';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Link } from 'wouter';
+import { 
+  Home, Calendar, Laptop, BarChart3, 
+  ThermometerSun, Lightbulb, Tv, Speaker,
+  Plus, Minus, AreaChart, AlertCircle,
+  CheckSquare as CheckCircle2
+} from 'lucide-react';
 
 export default function SmartHomePage() {
-  const { 
-    devices, 
-    temperature, 
-    boilerActive, 
-    toggleDeviceStatus, 
-    increaseTemperature, 
-    decreaseTemperature,
-    getTempHistory
-  } = useSmartHome();
+  // Mock data
+  const [temperature, setTemperature] = useState(22);
+  const [boilerActive, setBoilerActive] = useState(true);
+  const [activeTab, setActiveTab] = useState<string>('all');
   
-  const [tempChartPeriod, setTempChartPeriod] = useState<'day' | 'week' | 'month'>('day');
-  const temperatureHistoryData = getTempHistory(tempChartPeriod);
+  const devices = [
+    { id: 1, name: 'Living Room', type: 'light', status: 'active', room: 'living' },
+    { id: 2, name: 'Kitchen', type: 'light', status: 'inactive', room: 'kitchen' },
+    { id: 3, name: 'Bedroom', type: 'light', status: 'inactive', room: 'bedroom' },
+    { id: 4, name: 'Smart TV', type: 'tv', status: 'inactive', room: 'living' },
+    { id: 5, name: 'Bluetooth Speaker', type: 'speaker', status: 'active', room: 'bedroom' },
+    { id: 6, name: 'Echo Dot', type: 'speaker', status: 'active', room: 'kitchen' }
+  ];
   
-  // Calculate temperature percentage for slider
+  // Calculate temperature percentage for slider (between 18-25 degree range)
   const tempPercentage = ((temperature - 18) / (25 - 18)) * 100;
   
+  // Helper functions to get all rooms
+  const rooms = Array.from(new Set(devices.map(device => device.room)));
+  
+  // Change temperature
+  const increaseTemperature = () => {
+    if (temperature < 25) {
+      setTemperature(temperature + 1);
+      if (temperature + 1 > 22) {
+        setBoilerActive(true);
+      }
+    }
+  };
+  
+  const decreaseTemperature = () => {
+    if (temperature > 18) {
+      setTemperature(temperature - 1);
+      if (temperature - 1 <= 22) {
+        setBoilerActive(false);
+      }
+    }
+  };
+  
+  // Toggle device status
+  const toggleDeviceStatus = (id: number) => {
+    console.log(`Toggle device ${id}`);
+    // This would be implemented with real data
+  };
+  
+  // Filter devices by room
+  const getFilteredDevices = () => {
+    if (activeTab === 'all') {
+      return devices;
+    }
+    return devices.filter(device => device.room === activeTab);
+  };
+  
+  // Get icon based on device type
+  const getDeviceIcon = (type: string) => {
+    switch (type) {
+      case 'light': return <Lightbulb className="h-5 w-5" />;
+      case 'tv': return <Tv className="h-5 w-5" />;
+      case 'speaker': return <Speaker className="h-5 w-5" />;
+      default: return <Laptop className="h-5 w-5" />;
+    }
+  };
+  
+  // Mock temperature data for chart
+  const mockTempData = [
+    { time: 0, temperature: 20 },
+    { time: 1, temperature: 21 },
+    { time: 2, temperature: 22 },
+    { time: 3, temperature: 22 },
+    { time: 4, temperature: 23 },
+    { time: 5, temperature: 22 },
+    { time: 6, temperature: 21 },
+  ];
+
   return (
-    <div className="flex flex-col h-screen">
-      <Navbar title="Smart Home" />
+    <div className="flex flex-col h-screen bg-gray-50">
+      <header className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm">
+        <div className="flex justify-between items-center">
+          <h1 className="text-xl font-bold text-gray-900">Smart Home</h1>
+          <Button size="sm" variant="outline" className="flex items-center gap-1">
+            <Plus className="h-4 w-4" />
+            Add Device
+          </Button>
+        </div>
+      </header>
       
-      <main className="flex-grow overflow-y-auto pb-20">
-        <section className="p-4 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-800">Smart Home</h2>
-            <div className="text-sm font-medium text-gray-500">
-              Last updated: <span>Just now</span>
+      <main className="flex-grow overflow-y-auto pb-20 px-4 py-6 space-y-6">
+        {/* Thermostat Card */}
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg font-semibold">Thermostat</CardTitle>
+            <CardDescription>Control your home temperature</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-col items-center">
+              <div className="text-5xl font-bold text-gray-800 flex items-baseline">
+                {temperature}<span className="text-2xl font-normal text-gray-500">°C</span>
+              </div>
+              
+              <div className="flex items-center justify-center space-x-6 my-4">
+                <Button 
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full h-10 w-10"
+                  onClick={decreaseTemperature}
+                >
+                  <Minus className="h-4 w-4" />
+                </Button>
+                <div className="h-16 w-16 rounded-full bg-gradient-to-r from-blue-400 to-red-400 flex items-center justify-center">
+                  <div className="h-12 w-12 rounded-full bg-white flex items-center justify-center">
+                    <ThermometerSun className="h-6 w-6 text-amber-500" />
+                  </div>
+                </div>
+                <Button 
+                  variant="outline"
+                  size="icon"
+                  className="rounded-full h-10 w-10"
+                  onClick={increaseTemperature}
+                >
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              
+              <div className="w-full flex justify-between text-sm text-gray-500 mb-1">
+                <span>18°C</span>
+                <span>25°C</span>
+              </div>
+              <div className="w-full h-2 bg-gray-100 rounded-full relative">
+                <div 
+                  className="absolute inset-y-0 left-0 bg-gradient-to-r from-blue-400 to-red-400 rounded-full"
+                  style={{ width: `${tempPercentage}%` }}
+                ></div>
+              </div>
+              
+              <Badge 
+                variant={boilerActive ? "default" : "secondary"} 
+                className="mt-4 px-3 py-1 text-xs"
+              >
+                {boilerActive ? 'Heating Active' : 'Heating Inactive'}
+              </Badge>
             </div>
-          </div>
-          
-          <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <CardContent className="p-4">
-              <h3 className="font-medium text-gray-700 mb-4">Thermostat</h3>
-              <div className="flex flex-col items-center">
-                <div className="text-5xl font-bold text-gray-800">{temperature}°C</div>
-                <div className="flex items-center space-x-6 my-4">
-                  <Button 
-                    className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200"
-                    variant="ghost"
-                    onClick={decreaseTemperature}
-                  >
-                    <span className="material-icons">remove</span>
-                  </Button>
-                  <Button 
-                    className="w-10 h-10 rounded-full bg-primary text-white flex items-center justify-center hover:bg-primary/90"
-                    onClick={increaseTemperature}
-                  >
-                    <span className="material-icons">add</span>
-                  </Button>
-                </div>
-                <div className="w-full flex justify-between text-sm text-gray-500 mt-2">
-                  <span>18°C</span>
-                  <span>25°C</span>
-                </div>
-                <div className="w-full h-2 bg-gray-100 rounded-full mt-1 relative">
-                  <div 
-                    className="absolute inset-y-0 left-0 bg-primary rounded-full"
-                    style={{ width: `${tempPercentage}%` }}
-                  ></div>
-                </div>
-                <Badge variant={boilerActive ? "success" : "secondary"} className="mt-4 px-3 py-1 text-sm">
-                  {boilerActive ? 'Boiler Active' : 'Boiler Inactive'}
-                </Badge>
+          </CardContent>
+        </Card>
+        
+        {/* Temperature Chart */}
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2">
+            <div className="flex justify-between">
+              <div>
+                <CardTitle className="text-lg font-semibold">Temperature History</CardTitle>
+                <CardDescription>Last 24 hours</CardDescription>
               </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <CardContent className="p-4">
-              <h3 className="font-medium text-gray-700 mb-4">Alexa Devices</h3>
-              <div className="grid grid-cols-2 gap-4">
-                {devices.map(device => (
-                  <div key={device.id} className="bg-gray-50 p-4 rounded-lg">
-                    <div className="flex items-center justify-between">
-                      <div>
-                        <span className={`material-icons ${device.status === 'active' ? 'text-primary' : 'text-gray-400'}`}>
-                          {device.type === 'light' ? 'lightbulb' : device.type === 'tv' ? 'tv' : 'speaker'}
-                        </span>
-                        <h4 className="text-sm font-medium mt-1">{device.name}</h4>
+              <Button variant="ghost" size="sm" className="flex items-center gap-1">
+                <AreaChart className="h-4 w-4" />
+                Details
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="h-[150px] bg-gray-50 rounded-lg relative">
+              {/* Simple mock chart */}
+              <svg className="w-full h-full" viewBox="0 0 100 50">
+                <defs>
+                  <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
+                    <stop offset="0%" stopColor="#60a5fa" />
+                    <stop offset="100%" stopColor="#f87171" />
+                  </linearGradient>
+                </defs>
+                <path 
+                  d={`M0,${50 - mockTempData[0].temperature} ${mockTempData.map((d, i) => 
+                    `L${(i * 100) / (mockTempData.length - 1)},${50 - d.temperature}`).join(' ')}`} 
+                  fill="none" 
+                  stroke="url(#gradient)" 
+                  strokeWidth="2"
+                />
+                <g>
+                  {mockTempData.map((d, i) => (
+                    <circle 
+                      key={i} 
+                      cx={(i * 100) / (mockTempData.length - 1)} 
+                      cy={50 - d.temperature} 
+                      r="1" 
+                      fill="#fff"
+                      stroke="url(#gradient)" 
+                      strokeWidth="1"
+                    />
+                  ))}
+                </g>
+              </svg>
+              <div className="absolute bottom-2 left-2 text-xs text-gray-500">12 AM</div>
+              <div className="absolute bottom-2 right-2 text-xs text-gray-500">12 PM</div>
+            </div>
+          </CardContent>
+        </Card>
+        
+        {/* Smart Devices */}
+        <Card className="shadow-sm">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-lg font-semibold">Smart Devices</CardTitle>
+            <Tabs defaultValue="all" onValueChange={setActiveTab}>
+              <TabsList className="grid grid-cols-3 mt-2">
+                <TabsTrigger value="all">All</TabsTrigger>
+                <TabsTrigger value="living">Living Room</TabsTrigger>
+                <TabsTrigger value="bedroom">Bedroom</TabsTrigger>
+              </TabsList>
+            </Tabs>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-4">
+              {getFilteredDevices().map(device => (
+                <div key={device.id} className="bg-gray-50 p-4 rounded-lg">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <div className={device.status === 'active' ? 'text-primary' : 'text-gray-400'}>
+                        {getDeviceIcon(device.type)}
                       </div>
-                      <Switch 
-                        checked={device.status === 'active'} 
-                        onCheckedChange={() => toggleDeviceStatus(device.id, device.status as any)}
-                      />
+                      <h4 className="text-sm font-medium mt-1">{device.name}</h4>
+                      <p className="text-xs text-gray-500 mt-0.5 capitalize">{device.room} room</p>
                     </div>
+                    <Switch 
+                      checked={device.status === 'active'} 
+                      onCheckedChange={() => toggleDeviceStatus(device.id)}
+                    />
                   </div>
-                ))}
-                
-                {devices.length === 0 && (
-                  <div className="col-span-2 bg-gray-50 p-8 rounded-lg text-center">
-                    <span className="material-icons text-gray-400 text-4xl mb-2">devices</span>
-                    <h3 className="text-lg font-medium text-gray-600">No devices found</h3>
-                    <p className="text-gray-500 mt-1">Add devices to get started</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-          
-          <Card className="bg-white rounded-xl shadow-sm border border-gray-100">
-            <CardContent className="p-4">
-              <TemperatureChart 
-                data={temperatureHistoryData}
-                period={tempChartPeriod}
-                onPeriodChange={setTempChartPeriod}
-              />
-            </CardContent>
-          </Card>
-        </section>
+                </div>
+              ))}
+              
+              {getFilteredDevices().length === 0 && (
+                <div className="col-span-2 bg-gray-50 p-8 rounded-lg text-center">
+                  <AlertCircle className="h-10 w-10 text-gray-400 mx-auto mb-2" />
+                  <h3 className="text-lg font-medium text-gray-600">No devices found</h3>
+                  <p className="text-gray-500 mt-1">Add devices to get started</p>
+                  <Button className="mt-4" size="sm">
+                    Add Device
+                  </Button>
+                </div>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </main>
       
-      <BottomNav />
+      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 flex justify-around">
+        <Link href="/">
+          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
+            <Home className="h-5 w-5" />
+            <span className="text-xs mt-1">Home</span>
+          </Button>
+        </Link>
+        <Link href="/calendar">
+          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
+            <Calendar className="h-5 w-5" />
+            <span className="text-xs mt-1">Calendar</span>
+          </Button>
+        </Link>
+        <Link href="/tasks">
+          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
+            <CheckCircle2 className="h-5 w-5" />
+            <span className="text-xs mt-1">Tasks</span>
+          </Button>
+        </Link>
+        <Link href="/smart-home">
+          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg text-primary">
+            <Laptop className="h-5 w-5" />
+            <span className="text-xs mt-1">Devices</span>
+          </Button>
+        </Link>
+        <Link href="/analytics">
+          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
+            <BarChart3 className="h-5 w-5" />
+            <span className="text-xs mt-1">Analytics</span>
+          </Button>
+        </Link>
+      </footer>
     </div>
   );
 }

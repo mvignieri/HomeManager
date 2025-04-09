@@ -1,185 +1,304 @@
 import React, { useState } from 'react';
-import { format, addDays, isSameDay } from 'date-fns';
-import Navbar from '@/components/layout/navbar';
-import BottomNav from '@/components/layout/bottom-nav';
+import { format, addDays, isSameDay, parseISO, isToday } from 'date-fns';
 import { Button } from '@/components/ui/button';
-import { Checkbox } from '@/components/ui/checkbox';
-import { useTasks } from '@/hooks/use-tasks';
-import TaskModal from '@/components/tasks/task-modal';
-import { useQuery } from '@tanstack/react-query';
-import { User } from '@shared/schema';
+import { Badge } from '@/components/ui/badge';
+import { Card, CardContent } from '@/components/ui/card';
+import { Calendar as CalendarComponent } from '@/components/ui/calendar'; 
+import { Link } from 'wouter';
+import { 
+  Home, Calendar, Laptop, BarChart3, 
+  Plus, CheckCircle, ArrowLeft, ArrowRight,
+  Clock, AlertCircle, CheckSquare as CheckCircle2
+} from 'lucide-react';
 
 export default function CalendarPage() {
-  const { tasks, getTasksByDay, completeTask } = useTasks();
-  const [selectedDate, setSelectedDate] = useState(new Date());
-  const [isModalOpen, setIsModalOpen] = useState(false);
-  const [showAllTasks, setShowAllTasks] = useState(true);
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
+  const [currentView, setCurrentView] = useState<'calendar' | 'day'>('calendar');
   
-  // Get house members
-  const { data: users = [] } = useQuery<User[]>({
-    queryKey: ['/api/users'],
-  });
+  // Mock tasks data (will be replaced with real data)
+  const mockTasks = [
+    { 
+      id: 1, 
+      title: 'Fix kitchen sink', 
+      priority: 'high', 
+      dueDate: new Date().toISOString(), 
+      status: 'created',
+      assignee: 'John'
+    },
+    { 
+      id: 2, 
+      title: 'Change living room light bulbs', 
+      priority: 'medium', 
+      dueDate: new Date().toISOString(), 
+      status: 'assigned',
+      assignee: null
+    },
+    { 
+      id: 3, 
+      title: 'Clean air filters', 
+      dueDate: new Date(Date.now() + 86400000).toISOString(), 
+      priority: 'high', 
+      status: 'created',
+      assignee: 'Sarah'
+    },
+    { 
+      id: 4, 
+      title: 'Restock cleaning supplies', 
+      priority: 'low', 
+      dueDate: new Date(Date.now() + 86400000 * 2).toISOString(), 
+      status: 'created',
+      assignee: null
+    },
+    { 
+      id: 5, 
+      title: 'Set up new smart thermostat', 
+      priority: 'medium', 
+      dueDate: new Date(Date.now() + 86400000 * 3).toISOString(), 
+      status: 'assigned',
+      assignee: 'John'
+    }
+  ];
   
-  // Generate calendar days for horizontal scrolling
-  const calendarDays = Array.from({ length: 7 }, (_, i) => {
-    const date = addDays(new Date(), i);
-    return {
-      date,
-      day: format(date, 'd'),
-      name: format(date, 'EEE'),
-      isToday: isSameDay(date, new Date()),
-    };
-  });
-  
-  // Get tasks for the selected day
-  const tasksForSelectedDay = getTasksByDay(selectedDate);
-  
-  // Format the selected date
-  const formattedSelectedDate = format(selectedDate, 'MMMM d, yyyy');
-  
-  const handleDateClick = (date: Date) => {
-    setSelectedDate(date);
+  // Function to get tasks for a specific date
+  const getTasksByDay = (date: Date) => {
+    return mockTasks.filter(task => 
+      isSameDay(parseISO(task.dueDate), date)
+    );
   };
   
-  const handleTaskCheck = (id: number, checked: boolean) => {
-    if (checked) {
-      completeTask(id);
+  // Get tasks for the selected date
+  const tasksForDay = selectedDate ? getTasksByDay(selectedDate) : [];
+  
+  // Function to handle clicking on a date
+  const handleDateClick = (date: Date | undefined) => {
+    setSelectedDate(date);
+    if (date) {
+      setCurrentView('day');
     }
   };
   
+  // Create weekday labels
+  const weekStart = addDays(new Date(), -1);
+  const weekDays = Array.from({ length: 7 }).map((_, i) => {
+    const day = addDays(weekStart, i);
+    return format(day, 'E');
+  });
+  
+  // Helper function to get priority color
+  const getPriorityColor = (priority: string) => {
+    switch (priority) {
+      case 'high': return 'destructive';
+      case 'medium': return 'default';
+      case 'low': return 'secondary';
+      default: return 'secondary';
+    }
+  };
+  
+  // Helper function to get status color
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case 'completed': return 'bg-green-500';
+      case 'assigned': return 'bg-amber-500';
+      case 'created': return 'bg-blue-500';
+      default: return 'bg-gray-500';
+    }
+  };
+  
+  // Helper function to navigate to previous/next day
+  const navigateDay = (direction: 'prev' | 'next') => {
+    if (!selectedDate) return;
+    
+    const newDate = new Date(selectedDate);
+    if (direction === 'prev') {
+      newDate.setDate(newDate.getDate() - 1);
+    } else {
+      newDate.setDate(newDate.getDate() + 1);
+    }
+    setSelectedDate(newDate);
+  };
+
   return (
-    <div className="flex flex-col h-screen">
-      <Navbar title="Calendar" />
+    <div className="flex flex-col h-screen bg-gray-50">
+      <header className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm">
+        <div className="flex justify-between items-center">
+          <div className="flex items-center">
+            {currentView === 'day' && (
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                className="mr-2"
+                onClick={() => setCurrentView('calendar')}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+            )}
+            <h1 className="text-xl font-bold text-gray-900">
+              {currentView === 'calendar' ? 'Calendar' : format(selectedDate!, 'MMMM d, yyyy')}
+            </h1>
+          </div>
+          <Button size="sm" variant="outline" className="flex items-center gap-1">
+            <Plus className="h-4 w-4" />
+            Add Task
+          </Button>
+        </div>
+      </header>
       
-      <main className="flex-grow overflow-y-auto pb-20">
-        <section className="p-4 space-y-6">
-          <div className="flex items-center justify-between">
-            <h2 className="text-xl font-bold text-gray-800">Task Calendar</h2>
-            <Button 
-              className="bg-primary text-white rounded-full w-12 h-12 flex items-center justify-center shadow-lg"
-              onClick={() => setIsModalOpen(true)}
-            >
-              <span className="material-icons">add</span>
-            </Button>
+      <main className="flex-grow overflow-y-auto pb-20 px-4 py-6">
+        {currentView === 'calendar' ? (
+          <div className="space-y-6">
+            <CalendarComponent
+              mode="single"
+              selected={selectedDate}
+              onSelect={handleDateClick}
+              className="rounded-md border shadow-sm bg-white"
+            />
+            
+            <Card>
+              <CardContent className="p-4">
+                <h3 className="font-medium text-gray-700 mb-2">
+                  Upcoming Tasks
+                </h3>
+                <div className="space-y-3">
+                  {mockTasks.slice(0, 3).map(task => (
+                    <div key={task.id} 
+                         className="flex items-center p-3 border border-gray-100 rounded-lg">
+                      <div className={`w-2 h-10 rounded mr-3 ${getStatusColor(task.status)}`}></div>
+                      <div className="flex-grow">
+                        <h4 className="text-sm font-medium">{task.title}</h4>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant={getPriorityColor(task.priority)} className="text-xs">
+                            {task.priority}
+                          </Badge>
+                          <span className="text-xs text-gray-500">
+                            {format(parseISO(task.dueDate), 'MMM d')}
+                            {isToday(parseISO(task.dueDate)) && ' (Today)'}
+                          </span>
+                        </div>
+                      </div>
+                      {task.assignee && (
+                        <div className="ml-2 text-xs text-gray-500 px-2 py-1 bg-gray-100 rounded">
+                          {task.assignee}
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </CardContent>
+            </Card>
           </div>
-          
-          <div className="bg-white rounded-xl shadow-sm overflow-x-auto">
-            <div className="flex p-2 space-x-2 min-w-full">
-              {calendarDays.map((day) => (
-                <Button
-                  key={day.day}
-                  className={`flex-shrink-0 w-16 text-center py-2 px-1 rounded-lg ${
-                    isSameDay(day.date, selectedDate)
-                      ? 'bg-primary text-white'
-                      : day.isToday
-                        ? 'bg-primary/10 text-primary'
-                        : ''
-                  }`}
-                  variant="ghost"
-                  onClick={() => handleDateClick(day.date)}
-                >
-                  <div className="text-xs font-medium">{day.name}</div>
-                  <div className="text-lg font-bold">{day.day}</div>
-                </Button>
-              ))}
-            </div>
-          </div>
-          
-          <div className="space-y-4">
+        ) : (
+          <div className="space-y-6">
             <div className="flex items-center justify-between">
-              <h3 className="font-medium text-gray-700">{formattedSelectedDate}</h3>
-              <div className="flex space-x-2">
-                <Button 
-                  className={`bg-gray-100 rounded-md px-3 py-1 text-sm font-medium ${showAllTasks ? 'text-primary' : 'text-gray-600'} hover:bg-gray-200`}
-                  variant="ghost"
-                  onClick={() => setShowAllTasks(true)}
-                >
-                  All
-                </Button>
-                <Button 
-                  className={`bg-gray-100 rounded-md px-3 py-1 text-sm font-medium ${!showAllTasks ? 'text-primary' : 'text-gray-600'} hover:bg-gray-200`}
-                  variant="ghost"
-                  onClick={() => setShowAllTasks(false)}
-                >
-                  My Tasks
-                </Button>
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => navigateDay('prev')}
+              >
+                <ArrowLeft className="h-4 w-4" />
+              </Button>
+              
+              <div className="flex items-center gap-2">
+                <Badge variant={isToday(selectedDate!) ? 'default' : 'secondary'} className="px-2">
+                  {isToday(selectedDate!) ? 'Today' : format(selectedDate!, 'EEEE')}
+                </Badge>
+                <span className="text-sm text-gray-500">
+                  {format(selectedDate!, 'MMMM d, yyyy')}
+                </span>
               </div>
+              
+              <Button 
+                variant="outline" 
+                size="icon"
+                onClick={() => navigateDay('next')}
+              >
+                <ArrowRight className="h-4 w-4" />
+              </Button>
             </div>
             
-            {/* Task list for the selected day */}
-            <div className="space-y-3">
-              {tasksForSelectedDay.length === 0 ? (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h3 className="font-medium text-gray-700">
+                  Tasks for {format(selectedDate!, 'MMM d')}
+                </h3>
+                <Badge variant="outline" className="px-2 py-0.5">
+                  {tasksForDay.length} tasks
+                </Badge>
+              </div>
+              
+              {tasksForDay.length === 0 ? (
                 <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-                  <span className="material-icons text-gray-400 text-4xl mb-2">event_available</span>
-                  <h3 className="text-lg font-medium text-gray-600">No tasks for this day</h3>
-                  <p className="text-gray-500 mt-1">Create a new task to get started</p>
-                  <Button 
-                    className="mt-4 bg-primary text-white"
-                    onClick={() => setIsModalOpen(true)}
-                  >
+                  <CheckCircle className="h-10 w-10 text-gray-400 mx-auto mb-2" />
+                  <h3 className="text-lg font-medium text-gray-600">No tasks scheduled</h3>
+                  <p className="text-gray-500 mt-1">Enjoy your free day!</p>
+                  <Button className="mt-4" size="sm">
                     Add Task
                   </Button>
                 </div>
               ) : (
-                tasksForSelectedDay.map(task => (
-                  <div key={task.id} className={`bg-white rounded-lg shadow-sm p-4 task-priority-${task.priority}`}>
-                    <div className="flex items-center">
-                      <Checkbox 
-                        className="w-5 h-5 rounded-full"
-                        checked={task.status === 'completed'}
-                        onCheckedChange={(checked) => handleTaskCheck(task.id, checked as boolean)}
-                      />
+                <div className="space-y-3">
+                  {tasksForDay.map(task => (
+                    <div key={task.id} className="bg-white rounded-lg shadow-sm p-4 flex items-start">
+                      <div className={`mt-0.5 w-4 h-4 rounded-full ${getStatusColor(task.status)} flex-shrink-0`}></div>
                       <div className="ml-3 flex-grow">
-                        <h4 className={`font-medium text-gray-800 ${task.status === 'completed' ? 'line-through' : ''}`}>
-                          {task.title}
-                        </h4>
-                        <div className="flex items-center mt-1 space-x-2">
-                          {task.dueDate && (
-                            <div className="flex items-center text-xs text-gray-500">
-                              <span className="material-icons text-xs mr-1">schedule</span>
-                              {format(new Date(task.dueDate), 'h:mm a')}
-                            </div>
+                        <h4 className="text-sm font-medium">{task.title}</h4>
+                        <div className="flex items-center gap-2 mt-1">
+                          <Badge variant={getPriorityColor(task.priority)} className="text-xs">
+                            {task.priority}
+                          </Badge>
+                          {task.assignee && (
+                            <span className="text-xs text-gray-500">
+                              Assigned to: {task.assignee}
+                            </span>
                           )}
-                          <div className="flex items-center text-xs text-gray-500">
-                            <span className="material-icons text-xs mr-1">timelapse</span>
-                            {task.effortHours > 0 && `${task.effortHours}h `}
-                            {task.effortMinutes > 0 && `${task.effortMinutes}m`}
-                            {task.effortHours === 0 && task.effortMinutes === 0 && '—'}
-                          </div>
-                          <span className={`px-2 py-0.5 rounded-full text-xs ${
-                            task.priority === 'high' 
-                              ? 'bg-red-100 text-red-800' 
-                              : task.priority === 'medium'
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-green-100 text-green-800'
-                          }`}>
-                            {task.priority.charAt(0).toUpperCase() + task.priority.slice(1)}
-                          </span>
                         </div>
                       </div>
-                      {task.assignedToId && users.some(u => u.id === task.assignedToId) && (
-                        <img 
-                          src={users.find(u => u.id === task.assignedToId)?.photoURL || `https://ui-avatars.com/api/?name=User`} 
-                          alt={`Assigned to ${users.find(u => u.id === task.assignedToId)?.displayName || 'User'}`} 
-                          className="w-6 h-6 rounded-full ml-2"
-                        />
-                      )}
+                      <div className="flex items-center ml-2">
+                        <Button variant="outline" size="sm" className="text-xs flex items-center gap-1">
+                          <CheckCircle className="h-3 w-3" />
+                          Complete
+                        </Button>
+                      </div>
                     </div>
-                  </div>
-                ))
+                  ))}
+                </div>
               )}
             </div>
           </div>
-        </section>
+        )}
       </main>
       
-      <BottomNav />
-      
-      <TaskModal 
-        open={isModalOpen}
-        onOpenChange={setIsModalOpen}
-        users={users}
-      />
+      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 flex justify-around">
+        <Link href="/">
+          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
+            <Home className="h-5 w-5" />
+            <span className="text-xs mt-1">Home</span>
+          </Button>
+        </Link>
+        <Link href="/calendar">
+          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg text-primary">
+            <Calendar className="h-5 w-5" />
+            <span className="text-xs mt-1">Calendar</span>
+          </Button>
+        </Link>
+        <Link href="/tasks">
+          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
+            <CheckCircle2 className="h-5 w-5" />
+            <span className="text-xs mt-1">Tasks</span>
+          </Button>
+        </Link>
+        <Link href="/smart-home">
+          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
+            <Laptop className="h-5 w-5" />
+            <span className="text-xs mt-1">Devices</span>
+          </Button>
+        </Link>
+        <Link href="/analytics">
+          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
+            <BarChart3 className="h-5 w-5" />
+            <span className="text-xs mt-1">Analytics</span>
+          </Button>
+        </Link>
+      </footer>
     </div>
   );
 }
