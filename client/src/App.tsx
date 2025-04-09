@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { Route, Switch } from "wouter";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
@@ -8,55 +8,55 @@ import CalendarPage from "@/pages/calendar";
 import SmartHomePage from "@/pages/smart-home";
 import AnalyticsPage from "@/pages/analytics";
 import TasksPage from "@/pages/tasks";
-import { useAuth } from "@/hooks/use-auth";
-import { useWebSocket } from "@/lib/websocket";
 
-function Router() {
-  const { user, loading } = useAuth();
-  const [pathname, setPathname] = useState(window.location.pathname);
+function App() {
+  // Simplified app without Firebase for now
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
   
-  // Connect to WebSocket for real-time updates when the user is authenticated
-  // The WebSocket connection is optional and won't block the app if it fails
-  const { connected } = useWebSocket();
-
-  useEffect(() => {
-    // Listen for location changes
-    const onLocationChange = () => {
-      setPathname(window.location.pathname);
-    };
-    
-    window.addEventListener('popstate', onLocationChange);
-    return () => window.removeEventListener('popstate', onLocationChange);
-  }, []);
-
-  if (loading) {
+  const handleLoginClick = () => {
+    setIsLoggedIn(true);
+  };
+  
+  if (!isLoggedIn) {
     return (
-      <div className="flex items-center justify-center h-screen">
-        <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+      <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-indigo-500 to-purple-600 p-6">
+        <div className="w-full max-w-md bg-white rounded-xl shadow-lg p-8 space-y-8">
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-gray-900">HomeTask</h1>
+            <p className="mt-2 text-gray-600">Your smart home task manager</p>
+          </div>
+          
+          <div className="space-y-4">
+            <button
+              onClick={handleLoginClick}
+              className="w-full flex items-center justify-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+            >
+              <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                <path d="M12.545 10.239v3.821h5.445c-0.712 2.315-2.647 3.972-5.445 3.972-3.332 0-6.033-2.701-6.033-6.032s2.701-6.032 6.033-6.032c1.498 0 2.866 0.549 3.921 1.453l2.814-2.814c-1.798-1.677-4.198-2.702-6.735-2.702-5.523 0-10 4.477-10 10s4.477 10 10 10c8.396 0 10-7.261 10-10 0-0.635-0.057-1.252-0.164-1.841h-9.836z" fill="#4285F4"/>
+              </svg>
+              Sign in with Google
+            </button>
+            
+            <p className="text-xs text-center text-gray-500 mt-8">
+              By signing in, you agree to our Terms of Service and Privacy Policy
+            </p>
+          </div>
+        </div>
+        <Toaster />
       </div>
     );
   }
 
-  if (!user) {
-    return <AuthPage />;
-  }
-
-  return (
-    <Switch>
-      <Route path="/" component={HomePage} />
-      <Route path="/calendar" component={CalendarPage} />
-      <Route path="/smart-home" component={SmartHomePage} />
-      <Route path="/analytics" component={AnalyticsPage} />
-      <Route path="/tasks" component={TasksPage} />
-      <Route component={NotFound} />
-    </Switch>
-  );
-}
-
-function App() {
   return (
     <>
-      <Router />
+      <Switch>
+        <Route path="/" component={HomePage} />
+        <Route path="/calendar" component={CalendarPage} />
+        <Route path="/smart-home" component={SmartHomePage} />
+        <Route path="/analytics" component={AnalyticsPage} />
+        <Route path="/tasks" component={TasksPage} />
+        <Route component={NotFound} />
+      </Switch>
       <Toaster />
     </>
   );
