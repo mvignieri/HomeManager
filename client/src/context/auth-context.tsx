@@ -42,34 +42,23 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     checkRedirect();
   }, [toast]);
 
-  // Listen for auth state changes
+  // Immediately set loading to false for development
   useEffect(() => {
-    // Set a timeout to exit loading state in case Firebase auth doesn't respond
-    const timeoutId = setTimeout(() => {
-      if (loading) {
-        console.log('Firebase auth timeout reached, exiting loading state');
-        setLoading(false);
-      }
-    }, 3000);
+    console.log('Setting loading to false immediately');
+    setLoading(false);
     
     const unsubscribe = auth.onAuthStateChanged((authUser) => {
-      // Clear the timeout since we received a response
-      clearTimeout(timeoutId);
-      
+      console.log('Auth state changed:', authUser ? 'logged in' : 'logged out');
       setUser(authUser);
-      setLoading(false);
     }, (authError) => {
-      clearTimeout(timeoutId);
       console.error('Auth state error:', authError);
       setError(authError.message);
-      setLoading(false);
     });
 
     return () => {
-      clearTimeout(timeoutId);
       unsubscribe();
     };
-  }, [loading]);
+  }, []);
 
   const value = {
     user,
