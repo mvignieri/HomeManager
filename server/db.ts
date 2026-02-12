@@ -1,14 +1,15 @@
 import 'dotenv/config';
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import { drizzle } from 'drizzle-orm/neon-http';
+import { neon } from '@neondatabase/serverless';
 import * as schema from '@shared/schema';
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL is not set');
 }
 
-// Create postgres connection
-const queryClient = postgres(process.env.DATABASE_URL);
+// Create Neon serverless connection (optimized for Vercel)
+// Uses HTTP for better serverless compatibility
+const sql = neon(process.env.DATABASE_URL);
 
 // Create drizzle instance
-export const db = drizzle(queryClient, { schema });
+export const db = drizzle(sql, { schema });

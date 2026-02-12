@@ -19,7 +19,6 @@ import PWAInstallPrompt from "@/components/pwa-install-prompt";
 import { useFCM } from "@/hooks/use-fcm";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
-import "@/lib/firebase-config-test";
 
 function App() {
   const { user, loading, houses, refreshHouses, showCreateHouseModal, setShowCreateHouseModal } = useAppContext();
