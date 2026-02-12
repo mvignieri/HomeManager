@@ -1,9 +1,9 @@
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
-import { storage } from "../server/pg-storage";
-import { initializeFirebaseAdmin } from "../server/firebase-admin";
-import { sendInvitationEmail, testEmailConnection } from "../server/email";
-import { sendNotificationToUser } from "../server/firebase-admin";
+import { storage } from "../server/pg-storage.js";
+import { initializeFirebaseAdmin } from "../server/firebase-admin.js";
+import { sendInvitationEmail, testEmailConnection } from "../server/email.js";
+import { sendNotificationToUser } from "../server/firebase-admin.js";
 import {
   insertUserSchema,
   insertHouseSchema,

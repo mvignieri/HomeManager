@@ -1,6 +1,6 @@
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
-import { log } from "./vite";
+import { log } from "./vite.js";
 
 export const app = express();
 

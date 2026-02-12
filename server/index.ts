@@ -1,9 +1,9 @@
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
-import { registerRoutes } from "./routes";
-import { setupVite, serveStatic, log } from "./vite";
-import { testEmailConnection } from "./email";
-import { initializeFirebaseAdmin } from "./firebase-admin";
+import { registerRoutes } from "./routes.js";
+import { setupVite, serveStatic, log } from "./vite.js";
+import { testEmailConnection } from "./email.js";
+import { initializeFirebaseAdmin } from "./firebase-admin.js";
 
 const app = express();
 app.use(express.json());

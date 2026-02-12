@@ -1,6 +1,6 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { storage } from "./pg-storage";
+import { storage } from "./pg-storage.js";
 import { WebSocketServer, WebSocket } from "ws";
 import {
   insertUserSchema,
@@ -16,8 +16,8 @@ import {
   HouseRole
 } from "@shared/schema";
 import { z } from "zod";
-import { sendInvitationEmail } from "./email";
-import { sendNotificationToUser } from "./firebase-admin";
+import { sendInvitationEmail } from "./email.js";
+import { sendNotificationToUser } from "./firebase-admin.js";
 
 // Connected WebSocket clients by userId
 const clients: Map<number, WebSocket[]> = new Map();

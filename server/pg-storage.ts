@@ -1,5 +1,5 @@
 import { eq, and, desc } from 'drizzle-orm';
-import { db } from './db';
+import { db } from './db.js';
 import {
   users, type User, type InsertUser,
   houses, type House, type InsertHouse,
@@ -9,7 +9,7 @@ import {
   notifications, type Notification, type InsertNotification,
   houseInvitations, type HouseInvitation, type InsertHouseInvitation,
 } from '@shared/schema';
-import type { IStorage } from './storage';
+import type { IStorage } from './storage.js';
 
 export class PostgresStorage implements IStorage {
   // User methods
