@@ -1,4 +1,4 @@
--- DailyTaskMaster Database Schema
+-- HomeManager Database Schema
 -- Execute this SQL in your production database (Vercel Postgres, Supabase, Neon, etc.)
 
 -- Drop existing tables (optional - only if you want to start fresh)

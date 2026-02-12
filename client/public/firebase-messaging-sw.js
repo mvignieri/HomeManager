@@ -5,12 +5,12 @@ importScripts('https://www.gstatic.com/firebasejs/11.6.0/firebase-messaging-comp
 // Initialize Firebase in the service worker
 // Note: This config will be dynamically injected by the client
 firebase.initializeApp({
-  apiKey: 'REPLACE_WITH_YOUR_API_KEY',
-  authDomain: 'REPLACE_WITH_YOUR_AUTH_DOMAIN',
-  projectId: 'REPLACE_WITH_YOUR_PROJECT_ID',
-  storageBucket: 'REPLACE_WITH_YOUR_STORAGE_BUCKET',
-  messagingSenderId: 'REPLACE_WITH_YOUR_MESSAGING_SENDER_ID',
-  appId: 'REPLACE_WITH_YOUR_APP_ID'
+  apiKey: "AIzaSyDuP6aTqHxDGYltX0WagUqNWShVN6frfK0",
+  authDomain: "homemanager-a83d8.firebaseapp.com",
+  projectId: "homemanager-a83d8",
+  storageBucket: "homemanager-a83d8.firebasestorage.app",
+  messagingSenderId: "38398003868",
+  appId: "1:38398003868:web:0e342e0cc813d88d013b59",
 });
 
 const messaging = firebase.messaging();

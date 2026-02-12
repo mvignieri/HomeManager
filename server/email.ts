@@ -1,29 +1,23 @@
 import nodemailer from 'nodemailer';
+import { Resend } from 'resend';
 
 // Determine environment
 const isProduction = process.env.NODE_ENV === 'production';
 
-// Create transporter based on environment
-const transporter = nodemailer.createTransport(
-  isProduction
-    ? {
-        // Production: use configured SMTP service (SendGrid, Mailgun, Resend, etc.)
-        host: process.env.EMAIL_HOST || 'smtp.sendgrid.net',
-        port: parseInt(process.env.EMAIL_PORT || '587'),
-        secure: process.env.EMAIL_SECURE === 'true', // true for 465, false for other ports
-        auth: {
-          user: process.env.EMAIL_USER!,
-          pass: process.env.EMAIL_PASSWORD!,
-        },
-      }
-    : {
-        // Development: use Mailhog
-        host: 'localhost',
-        port: 1025,
-        secure: false,
-        ignoreTLS: true,
-      }
-);
+// Initialize Resend for production
+const resend = isProduction && process.env.RESEND_API_KEY
+  ? new Resend(process.env.RESEND_API_KEY)
+  : null;
+
+// Create Nodemailer transporter for development (Mailhog)
+const transporter = !isProduction
+  ? nodemailer.createTransport({
+      host: 'localhost',
+      port: 1025,
+      secure: false,
+      ignoreTLS: true,
+    })
+  : null;
 
 export interface InvitationEmailData {
   email: string;
@@ -180,32 +174,66 @@ This invitation will expire in 7 days.
 If you didn't expect this invitation, you can safely ignore this email.
   `;
 
-  const fromEmail = process.env.EMAIL_FROM || '"HomeManager" <noreply@homemanager.app>';
+  const fromEmail = process.env.EMAIL_FROM || 'HomeManager <onboarding@resend.dev>';
+  const subject = `You've been invited to join ${houseName} on HomeManager`;
 
   try {
-    await transporter.sendMail({
-      from: fromEmail,
-      to: email,
-      subject: `You've been invited to join ${houseName} on HomeManager`,
-      text: textContent,
-      html: htmlContent,
-    });
-
-    console.log(`Invitation email sent to ${email}`);
+    if (isProduction && resend) {
+      // Production: Use Resend API
+      await resend.emails.send({
+        from: fromEmail,
+        to: email,
+        subject: subject,
+        html: htmlContent,
+        text: textContent,
+      });
+      console.log(`✓ Invitation email sent to ${email} via Resend`);
+    } else if (transporter) {
+      // Development: Use Mailhog via Nodemailer
+      await transporter.sendMail({
+        from: fromEmail,
+        to: email,
+        subject: subject,
+        text: textContent,
+        html: htmlContent,
+      });
+      console.log(`✓ Invitation email sent to ${email} via Mailhog`);
+    } else {
+      console.warn('⚠ Email service not configured - email not sent');
+      console.warn('  In production: Set RESEND_API_KEY');
+      console.warn('  In development: Ensure Mailhog is running');
+    }
   } catch (error) {
-    console.error('Error sending invitation email:', error);
+    console.error('✗ Error sending invitation email:', error);
     throw new Error('Failed to send invitation email');
   }
 }
 
 // Test email connection
 export async function testEmailConnection(): Promise<boolean> {
-  try {
-    await transporter.verify();
-    console.log('Email server connection verified');
-    return true;
-  } catch (error) {
-    console.error('Email server connection failed:', error);
+  if (isProduction) {
+    // In production with Resend, check if API key is configured
+    if (resend) {
+      console.log('✓ Resend API configured for production');
+      return true;
+    } else {
+      console.warn('⚠ Resend API key not found - emails will not be sent');
+      console.warn('  Set RESEND_API_KEY environment variable');
+      return false;
+    }
+  } else {
+    // In development with Mailhog, try to verify connection
+    if (transporter) {
+      try {
+        await transporter.verify();
+        console.log('✓ Mailhog connection verified (localhost:1025)');
+        return true;
+      } catch (error) {
+        console.warn('⚠ Mailhog not running - emails will not be sent');
+        console.warn('  Start Mailhog: docker run -d -p 1025:1025 -p 8025:8025 mailhog/mailhog');
+        return false;
+      }
+    }
     return false;
   }
 }
