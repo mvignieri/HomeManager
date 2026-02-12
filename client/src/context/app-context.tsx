@@ -16,6 +16,8 @@ interface AppContextProps {
   setCurrentHouse: (house: House | null) => void;
   houses: House[];
   refreshHouses: () => void;
+  showCreateHouseModal: boolean;
+  setShowCreateHouseModal: (show: boolean) => void;
 }
 
 const AppContext = createContext<AppContextProps>({
@@ -25,6 +27,8 @@ const AppContext = createContext<AppContextProps>({
   setCurrentHouse: () => {},
   houses: [],
   refreshHouses: () => {},
+  showCreateHouseModal: false,
+  setShowCreateHouseModal: () => {},
 });
 
 export const useAppContext = () => useContext(AppContext);
@@ -33,6 +37,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
   const [currentHouse, setCurrentHouse] = useState<House | null>(null);
+  const [showCreateHouseModal, setShowCreateHouseModal] = useState(false);
   const [, setLocation] = useLocation();
 
   // Fetch houses for the current user
@@ -57,15 +62,17 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
         setLoading(false);
       }
     }, 2000);
-    
+
     const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
       // Clear the timeout since we received a response
       clearTimeout(timeoutId);
-      
+
+      console.log('Auth state changed:', authUser ? authUser.email : 'no user');
+
       if (authUser) {
         // User is signed in
         setUser(authUser);
-        
+
         // Check if the user exists in our database, if not create them
         try {
           const response = await fetch('/api/user/check', {
@@ -80,9 +87,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
               photoURL: authUser.photoURL,
             }),
           });
-          
+
           if (!response.ok) {
             throw new Error('Failed to verify user');
+          }
+
+          console.log('User verified/created in database');
+
+          // Check for pending invitation token
+          const pendingToken = localStorage.getItem('pendingInviteToken');
+          if (pendingToken) {
+            console.log('Found pending invitation token, redirecting to accept page');
+            // Redirect to accept-invite page with the token
+            setTimeout(() => {
+              setLocation(`/accept-invite?token=${pendingToken}`);
+            }, 500);
           }
         } catch (error) {
           console.error('Error checking user:', error);
@@ -99,7 +118,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       clearTimeout(timeoutId);
       unsubscribe();
     };
-  }, [loading]);
+  }, [loading, setLocation]);
 
   const value = {
     user,
@@ -108,6 +127,8 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     setCurrentHouse,
     houses,
     refreshHouses,
+    showCreateHouseModal,
+    setShowCreateHouseModal,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

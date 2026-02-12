@@ -1,6 +1,9 @@
+import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { testEmailConnection } from "./email";
+import { initializeFirebaseAdmin } from "./firebase-admin";
 
 const app = express();
 app.use(express.json());
@@ -37,6 +40,21 @@ app.use((req, res, next) => {
 });
 
 (async () => {
+  // Initialize Firebase Admin SDK
+  const firebaseAdmin = initializeFirebaseAdmin();
+  if (!firebaseAdmin) {
+    log("⚠ Firebase Admin not initialized - push notifications will not work");
+    log("  Set FIREBASE_SERVICE_ACCOUNT_KEY in .env to enable push notifications");
+  }
+
+  // Test email connection
+  const emailConnected = await testEmailConnection();
+  if (emailConnected) {
+    log("✓ Email service connected (Mailhog on port 1025)");
+  } else {
+    log("⚠ Email service not connected - invitations will be created but emails won't be sent");
+  }
+
   const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -60,11 +78,7 @@ app.use((req, res, next) => {
   // this serves both the API and the client.
   // It is the only port that is not firewalled.
   const port = 5000;
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  server.listen(port, () => {
     log(`serving on port ${port}`);
   });
 })();

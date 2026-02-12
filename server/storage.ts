@@ -1,9 +1,11 @@
-import { 
+import {
   users, type User, type InsertUser,
   houses, type House, type InsertHouse,
   houseMembers, type HouseMember, type InsertHouseMember,
   tasks, type Task, type InsertTask,
   devices, type Device, type InsertDevice,
+  notifications, type Notification, type InsertNotification,
+  houseInvitations, type HouseInvitation, type InsertHouseInvitation,
   TaskStatus, TaskPriority, DeviceStatus, DeviceType, HouseRole
 } from "@shared/schema";
 
@@ -17,17 +19,20 @@ export interface IStorage {
   getUserByEmail(email: string): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   createUser(user: InsertUser): Promise<User>;
-  
+  updateUser(id: number, updates: Partial<User>): Promise<User | undefined>;
+
   // House methods
   getHouse(id: number): Promise<House | undefined>;
   getAllHouses(): Promise<House[]>;
   getHousesByUser(userId: number): Promise<House[]>;
   createHouse(house: InsertHouse): Promise<House>;
+  updateHouse(id: number, updates: Partial<House>): Promise<House | undefined>;
   
   // House member methods
   getHouseMember(id: number): Promise<HouseMember | undefined>;
   getHouseMembers(houseId: number): Promise<HouseMember[]>;
   addHouseMember(member: InsertHouseMember): Promise<HouseMember>;
+  updateHouseMember(id: number, updates: Partial<HouseMember>): Promise<HouseMember | undefined>;
   
   // Task methods
   getTask(id: number): Promise<Task | undefined>;
@@ -45,6 +50,22 @@ export interface IStorage {
   createDevice(device: InsertDevice): Promise<Device>;
   updateDevice(id: number, updates: Partial<Device>): Promise<Device>;
   deleteDevice(id: number): Promise<void>;
+
+  // Notification methods
+  getNotification(id: number): Promise<Notification | undefined>;
+  getNotifications(userId: number, houseId?: number): Promise<Notification[]>;
+  createNotification(notification: InsertNotification): Promise<Notification>;
+  markNotificationAsRead(id: number): Promise<Notification | undefined>;
+  deleteNotification(id: number): Promise<void>;
+
+  // House invitation methods
+  getInvitation(id: number): Promise<HouseInvitation | undefined>;
+  getInvitationByToken(token: string): Promise<HouseInvitation | undefined>;
+  getInvitationsByHouse(houseId: number): Promise<HouseInvitation[]>;
+  getInvitationsByEmail(email: string): Promise<HouseInvitation[]>;
+  createInvitation(invitation: InsertHouseInvitation): Promise<HouseInvitation>;
+  updateInvitation(id: number, updates: Partial<HouseInvitation>): Promise<HouseInvitation | undefined>;
+  deleteInvitation(id: number): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -53,12 +74,16 @@ export class MemStorage implements IStorage {
   private houseMembers: Map<number, HouseMember>;
   private tasks: Map<number, Task>;
   private devices: Map<number, Device>;
-  
+  private notifications: Map<number, Notification>;
+  private invitations: Map<number, HouseInvitation>;
+
   private userIdCounter: number;
   private houseIdCounter: number;
   private houseMemberIdCounter: number;
   private taskIdCounter: number;
   private deviceIdCounter: number;
+  private notificationIdCounter: number;
+  private invitationIdCounter: number;
 
   constructor() {
     this.users = new Map();
@@ -66,12 +91,16 @@ export class MemStorage implements IStorage {
     this.houseMembers = new Map();
     this.tasks = new Map();
     this.devices = new Map();
-    
+    this.notifications = new Map();
+    this.invitations = new Map();
+
     this.userIdCounter = 1;
     this.houseIdCounter = 1;
     this.houseMemberIdCounter = 1;
     this.taskIdCounter = 1;
     this.deviceIdCounter = 1;
+    this.notificationIdCounter = 1;
+    this.invitationIdCounter = 1;
   }
 
   // User methods
@@ -102,7 +131,18 @@ export class MemStorage implements IStorage {
     this.users.set(id, user);
     return user;
   }
-  
+
+  async updateUser(id: number, updates: Partial<User>): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) {
+      return undefined;
+    }
+
+    const updatedUser = { ...user, ...updates };
+    this.users.set(id, updatedUser);
+    return updatedUser;
+  }
+
   // House methods
   async getHouse(id: number): Promise<House | undefined> {
     return this.houses.get(id);
@@ -131,7 +171,18 @@ export class MemStorage implements IStorage {
     this.houses.set(id, house);
     return house;
   }
-  
+
+  async updateHouse(id: number, updates: Partial<House>): Promise<House | undefined> {
+    const house = this.houses.get(id);
+    if (!house) {
+      return undefined;
+    }
+
+    const updatedHouse = { ...house, ...updates };
+    this.houses.set(id, updatedHouse);
+    return updatedHouse;
+  }
+
   // House member methods
   async getHouseMember(id: number): Promise<HouseMember | undefined> {
     return this.houseMembers.get(id);
@@ -149,6 +200,17 @@ export class MemStorage implements IStorage {
     const member: HouseMember = { ...insertMember, id, joinedAt: now };
     this.houseMembers.set(id, member);
     return member;
+  }
+
+  async updateHouseMember(id: number, updates: Partial<HouseMember>): Promise<HouseMember | undefined> {
+    const member = this.houseMembers.get(id);
+    if (!member) {
+      return undefined;
+    }
+
+    const updatedMember = { ...member, ...updates };
+    this.houseMembers.set(id, updatedMember);
+    return updatedMember;
   }
   
   // Task methods
@@ -240,6 +302,105 @@ export class MemStorage implements IStorage {
   
   async deleteDevice(id: number): Promise<void> {
     this.devices.delete(id);
+  }
+
+  // Notification methods
+  async getNotification(id: number): Promise<Notification | undefined> {
+    return this.notifications.get(id);
+  }
+
+  async getNotifications(userId: number, houseId?: number): Promise<Notification[]> {
+    let notifications = Array.from(this.notifications.values()).filter(
+      (notification) => notification.userId === userId
+    );
+
+    if (houseId !== undefined) {
+      notifications = notifications.filter(
+        (notification) => notification.houseId === houseId
+      );
+    }
+
+    // Sort by created date, newest first
+    return notifications.sort((a, b) =>
+      new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+    );
+  }
+
+  async createNotification(insertNotification: InsertNotification): Promise<Notification> {
+    const id = this.notificationIdCounter++;
+    const now = new Date();
+    const notification: Notification = {
+      ...insertNotification,
+      id,
+      createdAt: now,
+    };
+    this.notifications.set(id, notification);
+    return notification;
+  }
+
+  async markNotificationAsRead(id: number): Promise<Notification | undefined> {
+    const notification = this.notifications.get(id);
+    if (!notification) {
+      return undefined;
+    }
+
+    const updatedNotification = { ...notification, read: true };
+    this.notifications.set(id, updatedNotification);
+    return updatedNotification;
+  }
+
+  async deleteNotification(id: number): Promise<void> {
+    this.notifications.delete(id);
+  }
+
+  // House invitation methods
+  async getInvitation(id: number): Promise<HouseInvitation | undefined> {
+    return this.invitations.get(id);
+  }
+
+  async getInvitationByToken(token: string): Promise<HouseInvitation | undefined> {
+    return Array.from(this.invitations.values()).find(
+      (invitation) => invitation.token === token
+    );
+  }
+
+  async getInvitationsByHouse(houseId: number): Promise<HouseInvitation[]> {
+    return Array.from(this.invitations.values()).filter(
+      (invitation) => invitation.houseId === houseId
+    );
+  }
+
+  async getInvitationsByEmail(email: string): Promise<HouseInvitation[]> {
+    return Array.from(this.invitations.values()).filter(
+      (invitation) => invitation.email === email
+    );
+  }
+
+  async createInvitation(insertInvitation: InsertHouseInvitation): Promise<HouseInvitation> {
+    const id = this.invitationIdCounter++;
+    const now = new Date();
+    const invitation: HouseInvitation = {
+      ...insertInvitation,
+      id,
+      createdAt: now,
+    };
+    this.invitations.set(id, invitation);
+    return invitation;
+  }
+
+  async updateInvitation(id: number, updates: Partial<HouseInvitation>): Promise<HouseInvitation | undefined> {
+    const invitation = this.invitations.get(id);
+    if (!invitation) {
+      return undefined;
+    }
+
+    const updatedInvitation = { ...invitation, ...updates };
+    this.invitations.set(id, updatedInvitation);
+    return updatedInvitation;
+  }
+
+  async deleteInvitation(id: number): Promise<void> {
+    this.invitations.delete(id);
   }
 }
 

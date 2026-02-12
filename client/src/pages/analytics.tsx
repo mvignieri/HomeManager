@@ -3,21 +3,23 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { 
-  Select, 
-  SelectTrigger, 
-  SelectValue, 
-  SelectContent, 
-  SelectItem 
+import {
+  Select,
+  SelectTrigger,
+  SelectValue,
+  SelectContent,
+  SelectItem
 } from '@/components/ui/select';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Link } from 'wouter';
-import { 
-  Home, Calendar, Laptop, BarChart3, 
+import {
+  Home, Calendar, Laptop, BarChart3,
   PieChart, AreaChart, UserCheck, Clock,
   ArrowUpRight, ArrowDownRight, Minus,
   Filter, CheckSquare as CheckCircle2
 } from 'lucide-react';
+import Sidebar from '@/components/layout/sidebar';
+import BottomNav from '@/components/layout/bottom-nav';
 
 export default function AnalyticsPage() {
   // Mock analytics data
@@ -67,7 +69,8 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm">
+      <Sidebar />
+      <header className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm md:ml-64">
         <div className="flex justify-between items-center">
           <h1 className="text-xl font-bold text-gray-900">Analytics</h1>
           <Select 
@@ -88,8 +91,8 @@ export default function AnalyticsPage() {
           </Select>
         </div>
       </header>
-      
-      <main className="flex-grow overflow-y-auto pb-20 px-4 py-6 space-y-6">
+
+      <main className="flex-grow overflow-y-auto pb-24 md:pb-6 px-4 py-6 space-y-6 md:ml-64">
         {/* Top Stats Cards */}
         <div className="grid grid-cols-2 gap-4">
           <Card className="shadow-sm">
@@ -302,39 +305,8 @@ export default function AnalyticsPage() {
           </CardContent>
         </Card>
       </main>
-      
-      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 flex justify-around">
-        <Link href="/">
-          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
-            <Home className="h-5 w-5" />
-            <span className="text-xs mt-1">Home</span>
-          </Button>
-        </Link>
-        <Link href="/calendar">
-          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
-            <Calendar className="h-5 w-5" />
-            <span className="text-xs mt-1">Calendar</span>
-          </Button>
-        </Link>
-        <Link href="/tasks">
-          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
-            <CheckCircle2 className="h-5 w-5" />
-            <span className="text-xs mt-1">Tasks</span>
-          </Button>
-        </Link>
-        <Link href="/smart-home">
-          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
-            <Laptop className="h-5 w-5" />
-            <span className="text-xs mt-1">Devices</span>
-          </Button>
-        </Link>
-        <Link href="/analytics">
-          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg text-primary">
-            <BarChart3 className="h-5 w-5" />
-            <span className="text-xs mt-1">Analytics</span>
-          </Button>
-        </Link>
-      </footer>
+
+      <BottomNav />
     </div>
   );
 }

@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Generate PWA Icons</title>
+  <style>
+    body { font-family: Arial; padding: 40px; text-align: center; }
+    button { padding: 15px 30px; margin: 10px; font-size: 16px; background: #6366f1; color: white; border: none; border-radius: 8px; cursor: pointer; }
+    button:hover { background: #4f46e5; }
+  </style>
+</head>
+<body>
+  <h1>Generate PWA Icons for HomeTask</h1>
+  <p>Click buttons to download icons, then move to client/public/</p>
+  <button onclick="generateIcon(192)">Download icon-192.png</button>
+  <button onclick="generateIcon(512)">Download icon-512.png</button>
+  <script>
+    function generateIcon(s) {
+      const c = document.createElement('canvas');
+      c.width = s; c.height = s;
+      const x = c.getContext('2d');
+      const g = x.createLinearGradient(0,0,s,s);
+      g.addColorStop(0,'#6366f1'); g.addColorStop(1,'#8b5cf6');
+      x.fillStyle=g; x.fillRect(0,0,s,s);
+      x.fillStyle='white'; x.font='bold '+(s*0.6)+'px Arial';
+      x.textAlign='center'; x.textBaseline='middle';
+      x.fillText('H',s/2,s/2);
+      c.toBlob(b=>{const u=URL.createObjectURL(b);const a=document.createElement('a');a.href=u;a.download='icon-'+s+'.png';a.click();URL.revokeObjectURL(u);alert('Downloaded! Move to client/public/')});
+    }
+  </script>
+</body>
+</html>

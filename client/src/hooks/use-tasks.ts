@@ -30,6 +30,12 @@ export function useTasks(filter?: string) {
     refetch,
   } = useQuery<Task[]>({
     queryKey: ['/api/tasks', currentHouse?.id, filterOptions],
+    queryFn: async () => {
+      if (!currentHouse?.id) return [];
+      const res = await fetch(`/api/tasks?houseId=${currentHouse.id}`);
+      if (!res.ok) throw new Error('Failed to fetch tasks');
+      return res.json();
+    },
     enabled: !!currentHouse,
   });
 
@@ -201,7 +207,9 @@ export function useTasks(filter?: string) {
     setFilterOptions,
     getTasksByDay,
     createTask: createTaskMutation.mutate,
+    createTaskAsync: createTaskMutation.mutateAsync,
     updateTask: updateTaskMutation.mutate,
+    updateTaskAsync: updateTaskMutation.mutateAsync,
     deleteTask: deleteTaskMutation.mutate,
     completeTask: completeTaskMutation.mutate,
     assignTask: assignTaskMutation.mutate,

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from 'firebase/auth';
-import { auth, handleRedirectResult } from '@/lib/firebase';
+import { auth } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextProps {
@@ -22,25 +22,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
-
-  // Handle redirect result on initial load
-  useEffect(() => {
-    const checkRedirect = async () => {
-      try {
-        await handleRedirectResult();
-      } catch (error: any) {
-        console.error('Redirect error:', error);
-        setError(error.message || 'Authentication failed');
-        toast({
-          title: 'Authentication Error',
-          description: error.message || 'Failed to complete authentication',
-          variant: 'destructive',
-        });
-      }
-    };
-
-    checkRedirect();
-  }, [toast]);
 
   // Immediately set loading to false for development
   useEffect(() => {

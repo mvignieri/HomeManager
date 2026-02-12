@@ -3,13 +3,15 @@ import { format, addDays, isSameDay, parseISO, isToday } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
-import { Calendar as CalendarComponent } from '@/components/ui/calendar'; 
+import { Calendar as CalendarComponent } from '@/components/ui/calendar';
 import { Link } from 'wouter';
-import { 
-  Home, Calendar, Laptop, BarChart3, 
+import {
+  Home, Calendar, Laptop, BarChart3,
   Plus, CheckCircle, ArrowLeft, ArrowRight,
   Clock, AlertCircle, CheckSquare as CheckCircle2
 } from 'lucide-react';
+import Sidebar from '@/components/layout/sidebar';
+import BottomNav from '@/components/layout/bottom-nav';
 
 export default function CalendarPage() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(new Date());
@@ -119,7 +121,8 @@ export default function CalendarPage() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm">
+      <Sidebar />
+      <header className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm md:ml-64">
         <div className="flex justify-between items-center">
           <div className="flex items-center">
             {currentView === 'day' && (
@@ -142,8 +145,8 @@ export default function CalendarPage() {
           </Button>
         </div>
       </header>
-      
-      <main className="flex-grow overflow-y-auto pb-20 px-4 py-6">
+
+      <main className="flex-grow overflow-y-auto pb-24 md:pb-6 px-4 py-6 md:ml-64">
         {currentView === 'calendar' ? (
           <div className="space-y-6">
             <CalendarComponent
@@ -266,39 +269,8 @@ export default function CalendarPage() {
           </div>
         )}
       </main>
-      
-      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 flex justify-around">
-        <Link href="/">
-          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
-            <Home className="h-5 w-5" />
-            <span className="text-xs mt-1">Home</span>
-          </Button>
-        </Link>
-        <Link href="/calendar">
-          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg text-primary">
-            <Calendar className="h-5 w-5" />
-            <span className="text-xs mt-1">Calendar</span>
-          </Button>
-        </Link>
-        <Link href="/tasks">
-          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
-            <CheckCircle2 className="h-5 w-5" />
-            <span className="text-xs mt-1">Tasks</span>
-          </Button>
-        </Link>
-        <Link href="/smart-home">
-          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
-            <Laptop className="h-5 w-5" />
-            <span className="text-xs mt-1">Devices</span>
-          </Button>
-        </Link>
-        <Link href="/analytics">
-          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
-            <BarChart3 className="h-5 w-5" />
-            <span className="text-xs mt-1">Analytics</span>
-          </Button>
-        </Link>
-      </footer>
+
+      <BottomNav />
     </div>
   );
 }

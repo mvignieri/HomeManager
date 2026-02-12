@@ -6,12 +6,14 @@ import { Slider } from '@/components/ui/slider';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Link } from 'wouter';
-import { 
-  Home, Calendar, Laptop, BarChart3, 
+import {
+  Home, Calendar, Laptop, BarChart3,
   ThermometerSun, Lightbulb, Tv, Speaker,
   Plus, Minus, AreaChart, AlertCircle,
   CheckSquare as CheckCircle2
 } from 'lucide-react';
+import Sidebar from '@/components/layout/sidebar';
+import BottomNav from '@/components/layout/bottom-nav';
 
 export default function SmartHomePage() {
   // Mock data
@@ -90,7 +92,8 @@ export default function SmartHomePage() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
-      <header className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm">
+      <Sidebar />
+      <header className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm md:ml-64">
         <div className="flex justify-between items-center">
           <h1 className="text-xl font-bold text-gray-900">Smart Home</h1>
           <Button size="sm" variant="outline" className="flex items-center gap-1">
@@ -99,8 +102,8 @@ export default function SmartHomePage() {
           </Button>
         </div>
       </header>
-      
-      <main className="flex-grow overflow-y-auto pb-20 px-4 py-6 space-y-6">
+
+      <main className="flex-grow overflow-y-auto pb-24 md:pb-6 px-4 py-6 space-y-6 md:ml-64">
         {/* Thermostat Card */}
         <Card className="shadow-sm">
           <CardHeader className="pb-2">
@@ -255,39 +258,8 @@ export default function SmartHomePage() {
           </CardContent>
         </Card>
       </main>
-      
-      <footer className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-200 px-4 py-2 flex justify-around">
-        <Link href="/">
-          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
-            <Home className="h-5 w-5" />
-            <span className="text-xs mt-1">Home</span>
-          </Button>
-        </Link>
-        <Link href="/calendar">
-          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
-            <Calendar className="h-5 w-5" />
-            <span className="text-xs mt-1">Calendar</span>
-          </Button>
-        </Link>
-        <Link href="/tasks">
-          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
-            <CheckCircle2 className="h-5 w-5" />
-            <span className="text-xs mt-1">Tasks</span>
-          </Button>
-        </Link>
-        <Link href="/smart-home">
-          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg text-primary">
-            <Laptop className="h-5 w-5" />
-            <span className="text-xs mt-1">Devices</span>
-          </Button>
-        </Link>
-        <Link href="/analytics">
-          <Button variant="ghost" className="flex flex-col items-center h-14 w-16 rounded-lg">
-            <BarChart3 className="h-5 w-5" />
-            <span className="text-xs mt-1">Analytics</span>
-          </Button>
-        </Link>
-      </footer>
+
+      <BottomNav />
     </div>
   );
 }

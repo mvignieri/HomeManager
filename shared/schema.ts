@@ -9,6 +9,7 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   displayName: text("display_name"),
   photoURL: text("photo_url"),
+  fcmToken: text("fcm_token"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -28,12 +29,19 @@ export const insertHouseSchema = createInsertSchema(houses).omit({ id: true, cre
 export type InsertHouse = z.infer<typeof insertHouseSchema>;
 export type House = typeof houses.$inferSelect;
 
-// House membership model
+// House membership model with permissions
 export const houseMembers = pgTable("house_members", {
   id: serial("id").primaryKey(),
   houseId: integer("house_id").notNull().references(() => houses.id),
   userId: integer("user_id").notNull().references(() => users.id),
   role: text("role").notNull().default("member"),
+  permissions: jsonb("permissions").default({
+    canCreateTasks: true,
+    canAssignTasks: true,
+    canDeleteTasks: false,
+    canManageDevices: false,
+    canManageUsers: false,
+  }),
   joinedAt: timestamp("joined_at").defaultNow().notNull(),
 });
 
@@ -59,10 +67,16 @@ export const tasks = pgTable("tasks", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
-export const insertTaskSchema = createInsertSchema(tasks).omit({ 
-  id: true, 
-  createdAt: true, 
-  completedAt: true 
+export const insertTaskSchema = createInsertSchema(tasks, {
+  dueDate: z.union([z.date(), z.string(), z.null()]).optional().transform((val) => {
+    if (!val || val === null) return null;
+    if (typeof val === 'string') return new Date(val);
+    return val;
+  }),
+}).omit({
+  id: true,
+  createdAt: true,
+  completedAt: true
 });
 
 export type InsertTask = z.infer<typeof insertTaskSchema>;
@@ -83,11 +97,28 @@ export const insertDeviceSchema = createInsertSchema(devices).omit({ id: true, c
 export type InsertDevice = z.infer<typeof insertDeviceSchema>;
 export type Device = typeof devices.$inferSelect;
 
+// Notification model
+export const notifications = pgTable("notifications", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
+  houseId: integer("house_id").notNull().references(() => houses.id),
+  title: text("title").notNull(),
+  message: text("message").notNull(),
+  type: text("type").notNull(), // "task_assigned", "task_completed", "device_update", etc.
+  data: jsonb("data"), // Additional data related to the notification
+  read: boolean("read").notNull().default(false),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertNotificationSchema = createInsertSchema(notifications).omit({ id: true, createdAt: true });
+export type InsertNotification = z.infer<typeof insertNotificationSchema>;
+export type Notification = typeof notifications.$inferSelect;
+
 // Task priority and status enums for validation
 export const TaskPriority = z.enum(["low", "medium", "high"]);
 export type TaskPriority = z.infer<typeof TaskPriority>;
 
-export const TaskStatus = z.enum(["created", "assigned", "completed"]);
+export const TaskStatus = z.enum(["created", "assigned", "in_progress", "completed"]);
 export type TaskStatus = z.infer<typeof TaskStatus>;
 
 export const DeviceType = z.enum(["thermostat", "light", "tv", "speaker"]);
@@ -98,3 +129,23 @@ export type DeviceStatus = z.infer<typeof DeviceStatus>;
 
 export const HouseRole = z.enum(["owner", "admin", "member"]);
 export type HouseRole = z.infer<typeof HouseRole>;
+
+// House invitations model
+export const houseInvitations = pgTable("house_invitations", {
+  id: serial("id").primaryKey(),
+  houseId: integer("house_id").notNull().references(() => houses.id),
+  email: text("email").notNull(),
+  role: text("role").notNull().default("member"),
+  invitedById: integer("invited_by_id").notNull().references(() => users.id),
+  token: text("token").notNull().unique(),
+  status: text("status").notNull().default("pending"), // "pending", "accepted", "expired"
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const insertHouseInvitationSchema = createInsertSchema(houseInvitations).omit({ id: true, createdAt: true });
+export type InsertHouseInvitation = z.infer<typeof insertHouseInvitationSchema>;
+export type HouseInvitation = typeof houseInvitations.$inferSelect;
+
+export const InvitationStatus = z.enum(["pending", "accepted", "expired"]);
+export type InvitationStatus = z.infer<typeof InvitationStatus>;

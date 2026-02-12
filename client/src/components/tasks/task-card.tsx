@@ -40,6 +40,7 @@ export default function TaskCard({
   const statusClasses: Record<string, string> = {
     created: 'bg-gray-100 text-gray-800',
     assigned: 'bg-blue-100 text-blue-800',
+    in_progress: 'bg-amber-100 text-amber-800',
     completed: 'bg-green-100 text-green-800',
   };
   
