@@ -14,7 +14,7 @@ import {
   DeviceStatus,
   DeviceType,
   HouseRole
-} from "@shared/schema";
+} from "../shared/schema.js";
 import { z } from "zod";
 import { sendInvitationEmail } from "./email.js";
 import { sendNotificationToUser } from "./firebase-admin.js";

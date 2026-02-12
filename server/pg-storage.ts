@@ -8,7 +8,7 @@ import {
   devices, type Device, type InsertDevice,
   notifications, type Notification, type InsertNotification,
   houseInvitations, type HouseInvitation, type InsertHouseInvitation,
-} from '@shared/schema';
+} from '../shared/schema.js';
 import type { IStorage } from './storage.js';
 
 export class PostgresStorage implements IStorage {

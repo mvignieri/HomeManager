@@ -16,7 +16,7 @@ import {
   DeviceStatus,
   DeviceType,
   HouseRole
-} from "../shared/schema";
+} from "../shared/schema.js";
 import { z } from "zod";
 
 const app = express();

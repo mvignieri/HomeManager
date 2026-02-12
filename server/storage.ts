@@ -7,7 +7,7 @@ import {
   notifications, type Notification, type InsertNotification,
   houseInvitations, type HouseInvitation, type InsertHouseInvitation,
   TaskStatus, TaskPriority, DeviceStatus, DeviceType, HouseRole
-} from "@shared/schema";
+} from "../shared/schema.js";
 
 // modify the interface with any CRUD methods
 // you might need
