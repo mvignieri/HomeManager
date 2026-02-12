@@ -182,10 +182,24 @@ app.post('/api/houses/:id/members', async (req, res) => {
       houseId,
     });
 
+    // Check if user is already a member
+    const existingMembers = await storage.getHouseMembers(houseId);
+    const isAlreadyMember = existingMembers.some(m => m.userId === memberData.userId);
+
+    if (isAlreadyMember) {
+      return res.status(400).json({ message: 'User is already a member of this house' });
+    }
+
     const member = await storage.addHouseMember(memberData);
     res.status(201).json(member);
   } catch (error) {
     console.error('Error adding house member:', error);
+
+    // Handle database unique constraint violation
+    if (error && typeof error === 'object' && 'code' in error && error.code === '23505') {
+      return res.status(400).json({ message: 'User is already a member of this house' });
+    }
+
     res.status(500).json({ message: 'Internal server error' });
   }
 });
