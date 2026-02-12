@@ -90,7 +90,7 @@ export function useFCM() {
 
       // Show browser notification if possible
       if (Notification.permission === 'granted') {
-        new Notification(payload.notification?.title || 'HomeTask', {
+        new Notification(payload.notification?.title || 'HomeManager', {
           body: payload.notification?.body || '',
           icon: payload.notification?.icon || '/icon-192.png',
           data: payload.data

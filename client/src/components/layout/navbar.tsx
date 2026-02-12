@@ -22,7 +22,7 @@ interface NavbarProps {
   title?: string;
 }
 
-export default function Navbar({ title = "HomeTask" }: NavbarProps) {
+export default function Navbar({ title = "HomeManager" }: NavbarProps) {
   const { user, currentHouse, houses, setCurrentHouse, setShowCreateHouseModal } = useAppContext();
   const [, setLocation] = useLocation();
 

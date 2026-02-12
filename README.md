@@ -1,10 +1,10 @@
-# 🏠 DailyTaskMaster
+# 🏠 HomeManager
 
 > A modern, collaborative task management system for shared households with smart home integration
 
-**DailyTaskMaster** is a Progressive Web App (PWA) designed for managing household tasks, coordinating with family members or roommates, and integrating with smart home devices. Built with a mobile-first approach, it features real-time notifications, drag-and-drop task management, and seamless multi-device synchronization.
+**HomeManager** is a Progressive Web App (PWA) designed for managing household tasks, coordinating with family members or roommates, and integrating with smart home devices. Built with a mobile-first approach, it features real-time notifications, drag-and-drop task management, and seamless multi-device synchronization.
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/mvignieri/DailyTaskMaster)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/mvignieri/HomeManager)
 
 ---
 
@@ -101,8 +101,8 @@
 
 ```bash
 # Clone the repository
-git clone https://github.com/mvignieri/DailyTaskMaster.git
-cd DailyTaskMaster
+git clone https://github.com/mvignieri/HomeManager.git
+cd HomeManager
 
 # Install dependencies
 npm install
@@ -185,7 +185,7 @@ psql $DATABASE_URL < database-schema.sql
 
 **Quick Deploy:**
 
-[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/mvignieri/DailyTaskMaster)
+[![Deploy with Vercel](https://vercel.com/button)](https://vercel.com/new/clone?repository-url=https://github.com/mvignieri/HomeManager)
 
 **Manual Deployment:**
 
@@ -220,7 +220,7 @@ psql $DATABASE_URL < database-schema.sql
 ## 🏗️ Project Structure
 
 ```
-DailyTaskMaster/
+HomeManager/
 ├── client/                    # Frontend React application
 │   ├── src/
 │   │   ├── components/       # Reusable UI components
@@ -410,7 +410,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 
 **Mario Vignieri**
 - GitHub: [@mvignieri](https://github.com/mvignieri)
-- Repository: [DailyTaskMaster](https://github.com/mvignieri/DailyTaskMaster)
+- Repository: [HomeManager](https://github.com/mvignieri/HomeManager)
 
 ---
 
@@ -426,7 +426,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support
 
 For issues, questions, or suggestions:
-- 🐛 [Open an issue](https://github.com/mvignieri/DailyTaskMaster/issues)
+- 🐛 [Open an issue](https://github.com/mvignieri/HomeManager/issues)
 - 📧 Contact: [Create an issue for support]
 
 ---

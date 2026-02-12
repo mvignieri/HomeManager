@@ -1,6 +1,6 @@
 {
-  "name": "HomeTask - Smart Home Task Manager",
-  "short_name": "HomeTask",
+  "name": "HomeManager - Smart Home Task Manager",
+  "short_name": "HomeManager",
   "description": "Manage your home tasks and smart devices efficiently",
   "start_url": "/",
   "display": "standalone",

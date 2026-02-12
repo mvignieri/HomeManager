@@ -117,7 +117,7 @@ export async function sendInvitationEmail(data: InvitationEmailData): Promise<vo
       <body>
         <div class="container">
           <div class="header">
-            <h1>🏠 HomeTask Invitation</h1>
+            <h1>🏠 HomeManager Invitation</h1>
           </div>
 
           <div class="content">
@@ -125,7 +125,7 @@ export async function sendInvitationEmail(data: InvitationEmailData): Promise<vo
 
             <p>
               <strong>${inviterName}</strong> has invited you to join their house
-              <strong>"${houseName}"</strong> on HomeTask.
+              <strong>"${houseName}"</strong> on HomeManager.
             </p>
 
             <div class="highlight">
@@ -163,11 +163,11 @@ export async function sendInvitationEmail(data: InvitationEmailData): Promise<vo
   `;
 
   const textContent = `
-HomeTask Invitation
+HomeManager Invitation
 
 Hello!
 
-${inviterName} has invited you to join their house "${houseName}" on HomeTask.
+${inviterName} has invited you to join their house "${houseName}" on HomeManager.
 
 House: ${houseName}
 Your Role: ${role.charAt(0).toUpperCase() + role.slice(1)}
@@ -180,13 +180,13 @@ This invitation will expire in 7 days.
 If you didn't expect this invitation, you can safely ignore this email.
   `;
 
-  const fromEmail = process.env.EMAIL_FROM || '"HomeTask" <noreply@hometask.app>';
+  const fromEmail = process.env.EMAIL_FROM || '"HomeManager" <noreply@homemanager.app>';
 
   try {
     await transporter.sendMail({
       from: fromEmail,
       to: email,
-      subject: `You've been invited to join ${houseName} on HomeTask`,
+      subject: `You've been invited to join ${houseName} on HomeManager`,
       text: textContent,
       html: htmlContent,
     });

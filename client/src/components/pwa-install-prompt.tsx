@@ -75,7 +75,7 @@ export default function PWAInstallPrompt() {
                 <Download className="h-5 w-5 text-primary" />
               </div>
               <div className="flex-1 min-w-0">
-                <h3 className="font-semibold text-sm mb-1">Install HomeTask</h3>
+                <h3 className="font-semibold text-sm mb-1">Install HomeManager</h3>
                 <p className="text-xs text-gray-600 mb-3">
                   Install our app for a better experience with offline access and quick launch.
                 </p>
