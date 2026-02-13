@@ -1,11 +1,12 @@
 import nodemailer from 'nodemailer';
 import { Resend } from 'resend';
 
-// Determine environment
-const isProduction = process.env.NODE_ENV === 'production';
+// Determine environment - if RESEND_API_KEY is present, we're in production
+// This is more reliable than NODE_ENV on serverless platforms
+const isProduction = !!process.env.RESEND_API_KEY;
 
-// Initialize Resend for production
-const resend = isProduction && process.env.RESEND_API_KEY
+// Initialize Resend if API key is present
+const resend = process.env.RESEND_API_KEY
   ? new Resend(process.env.RESEND_API_KEY)
   : null;
 
@@ -177,10 +178,16 @@ If you didn't expect this invitation, you can safely ignore this email.
   const fromEmail = process.env.EMAIL_FROM || 'HomeManager <onboarding@resend.dev>';
   const subject = `You've been invited to join ${houseName} on HomeManager`;
 
+  console.log(`📧 Attempting to send email to ${email}`);
+  console.log(`   Environment: ${isProduction ? 'Production (Resend)' : 'Development (Mailhog)'}`);
+  console.log(`   From: ${fromEmail}`);
+  console.log(`   Subject: ${subject}`);
+
   try {
     if (isProduction && resend) {
       // Production: Use Resend API
-      await resend.emails.send({
+      console.log('   Using Resend API...');
+      const result = await resend.emails.send({
         from: fromEmail,
         to: email,
         subject: subject,
@@ -188,9 +195,11 @@ If you didn't expect this invitation, you can safely ignore this email.
         text: textContent,
       });
       console.log(`✓ Invitation email sent to ${email} via Resend`);
+      console.log(`   Resend response:`, result);
     } else if (transporter) {
       // Development: Use Mailhog via Nodemailer
-      await transporter.sendMail({
+      console.log('   Using Mailhog...');
+      const result = await transporter.sendMail({
         from: fromEmail,
         to: email,
         subject: subject,
@@ -198,14 +207,21 @@ If you didn't expect this invitation, you can safely ignore this email.
         html: htmlContent,
       });
       console.log(`✓ Invitation email sent to ${email} via Mailhog`);
+      console.log(`   Mailhog messageId:`, result.messageId);
     } else {
       console.warn('⚠ Email service not configured - email not sent');
-      console.warn('  In production: Set RESEND_API_KEY');
-      console.warn('  In development: Ensure Mailhog is running');
+      console.warn('  RESEND_API_KEY present:', !!process.env.RESEND_API_KEY);
+      console.warn('  Resend client initialized:', !!resend);
+      console.warn('  Mailhog transporter:', !!transporter);
     }
   } catch (error) {
     console.error('✗ Error sending invitation email:', error);
-    throw new Error('Failed to send invitation email');
+    // Log more details about the error
+    if (error instanceof Error) {
+      console.error('   Error message:', error.message);
+      console.error('   Error stack:', error.stack);
+    }
+    throw new Error(`Failed to send invitation email: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }
 
