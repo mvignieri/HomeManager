@@ -328,6 +328,7 @@ app.post('/api/houses/:id/invitations', async (req, res) => {
     const invitedUser = await storage.getUserByEmail(email);
     if (invitedUser) {
       try {
+        // Create in-app notification
         await storage.createNotification({
           userId: invitedUser.id,
           houseId,
@@ -337,6 +338,26 @@ app.post('/api/houses/:id/invitations', async (req, res) => {
           data: { invitationId: invitation.id, token: invitation.token },
           read: false,
         });
+        console.log(`Notification created for existing user: ${email}`);
+
+        // Send push notification if user has FCM token
+        if (invitedUser.fcmToken) {
+          try {
+            await sendNotificationToUser(
+              invitedUser.id,
+              'New House Invitation',
+              `${inviter.displayName || inviter.email} has invited you to join ${house.name}`,
+              {
+                type: 'house_invitation',
+                invitationId: invitation.id.toString(),
+                token: invitation.token
+              }
+            );
+            console.log(`Push notification sent to user: ${email}`);
+          } catch (pushError) {
+            console.error('Failed to send push notification:', pushError);
+          }
+        }
       } catch (notifError) {
         console.error('Failed to create notification:', notifError);
       }

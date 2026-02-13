@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Bell } from 'lucide-react';
+import { Bell, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Popover,
@@ -11,6 +11,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Notification } from '@shared/schema';
+import { useToast } from '@/hooks/use-toast';
 
 interface NotificationBellProps {
   userId?: number;
@@ -20,6 +21,7 @@ interface NotificationBellProps {
 export default function NotificationBell({ userId, houseId }: NotificationBellProps) {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
+  const { toast } = useToast();
 
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ['/api/notifications', userId, houseId],
@@ -60,6 +62,40 @@ export default function NotificationBell({ userId, houseId }: NotificationBellPr
     },
   });
 
+  const acceptInvitationMutation = useMutation({
+    mutationFn: async ({ token, notificationId }: { token: string; notificationId: number }) => {
+      const res = await fetch(`/api/invitations/${token}/accept`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to accept invitation');
+      }
+      // Delete notification after accepting
+      await fetch(`/api/notifications/${notificationId}`, { method: 'DELETE' });
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Invitation Accepted',
+        description: 'You have successfully joined the house!',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/notifications'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/houses'] });
+      // Reload the page to update the house list
+      window.location.reload();
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message,
+        variant: 'destructive',
+      });
+    },
+  });
+
   const unreadCount = notifications.filter((n) => !n.read).length;
 
   const handleNotificationClick = (notification: Notification) => {
@@ -91,6 +127,8 @@ export default function NotificationBell({ userId, houseId }: NotificationBellPr
         return '✅';
       case 'device_update':
         return '🏠';
+      case 'house_invitation':
+        return '✉️';
       default:
         return '🔔';
     }
@@ -129,45 +167,84 @@ export default function NotificationBell({ userId, houseId }: NotificationBellPr
             </div>
           ) : (
             <div className="divide-y">
-              {notifications.map((notification) => (
-                <div
-                  key={notification.id}
-                  className={`p-4 hover:bg-gray-50 cursor-pointer transition-colors ${
-                    !notification.read ? 'bg-blue-50' : ''
-                  }`}
-                  onClick={() => handleNotificationClick(notification)}
-                >
-                  <div className="flex items-start gap-3">
-                    <div className="text-2xl">
-                      {getNotificationIcon(notification.type)}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between">
-                        <h4 className="font-medium text-sm">
-                          {notification.title}
-                        </h4>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="h-6 w-6 p-0 hover:bg-red-100"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            deleteNotificationMutation.mutate(notification.id);
-                          }}
-                        >
-                          ✕
-                        </Button>
+              {notifications.map((notification) => {
+                const isInvitation = notification.type === 'house_invitation';
+                const invitationData = isInvitation ? (notification.data as any) : null;
+
+                return (
+                  <div
+                    key={notification.id}
+                    className={`p-4 ${!isInvitation ? 'hover:bg-gray-50 cursor-pointer' : ''} transition-colors ${
+                      !notification.read ? 'bg-blue-50' : ''
+                    }`}
+                    onClick={() => !isInvitation && handleNotificationClick(notification)}
+                  >
+                    <div className="flex items-start gap-3">
+                      <div className="text-2xl">
+                        {getNotificationIcon(notification.type)}
                       </div>
-                      <p className="text-sm text-gray-600 mt-1">
-                        {notification.message}
-                      </p>
-                      <p className="text-xs text-gray-400 mt-1">
-                        {formatTimestamp(notification.createdAt)}
-                      </p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between">
+                          <h4 className="font-medium text-sm">
+                            {notification.title}
+                          </h4>
+                          {!isInvitation && (
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              className="h-6 w-6 p-0 hover:bg-red-100"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteNotificationMutation.mutate(notification.id);
+                              }}
+                            >
+                              ✕
+                            </Button>
+                          )}
+                        </div>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {notification.message}
+                        </p>
+                        <p className="text-xs text-gray-400 mt-1">
+                          {formatTimestamp(notification.createdAt)}
+                        </p>
+
+                        {isInvitation && invitationData?.token && (
+                          <div className="flex gap-2 mt-3">
+                            <Button
+                              size="sm"
+                              className="flex-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                acceptInvitationMutation.mutate({
+                                  token: invitationData.token,
+                                  notificationId: notification.id,
+                                });
+                              }}
+                              disabled={acceptInvitationMutation.isPending}
+                            >
+                              <Check className="h-4 w-4 mr-1" />
+                              Accept
+                            </Button>
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="flex-1"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                deleteNotificationMutation.mutate(notification.id);
+                              }}
+                            >
+                              <X className="h-4 w-4 mr-1" />
+                              Decline
+                            </Button>
+                          </div>
+                        )}
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </ScrollArea>

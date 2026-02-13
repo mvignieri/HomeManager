@@ -164,55 +164,37 @@ export default function SettingsPage() {
 
   const inviteMemberMutation = useMutation({
     mutationFn: async ({ email, role }: { email: string; role: string }) => {
-      // Check if user already exists
+      // Check if user already exists and is already a member
       const user = allUsers.find((u) => u.email === email);
-
       if (user) {
-        // User exists - check if already a member
         const existingMember = members.find((m) => m.userId === user.id);
         if (existingMember) {
           throw new Error('User is already a member of this house');
         }
-
-        // Add as house member directly
-        const res = await fetch(`/api/houses/${currentHouse?.id}/members`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ userId: user.id, role }),
-        });
-        if (!res.ok) throw new Error('Failed to add member');
-        return { type: 'direct', data: await res.json() };
-      } else {
-        // User doesn't exist - create invitation
-        const res = await fetch(`/api/houses/${currentHouse?.id}/invitations`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            email,
-            role,
-            invitedById: dbUser?.id,
-          }),
-        });
-        if (!res.ok) {
-          const errorData = await res.json();
-          throw new Error(errorData.message || 'Failed to send invitation');
-        }
-        return { type: 'invitation', data: await res.json() };
       }
+
+      // Always create invitation - even if user exists, they need to accept
+      const res = await fetch(`/api/houses/${currentHouse?.id}/invitations`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          role,
+          invitedById: dbUser?.id,
+        }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to send invitation');
+      }
+      return await res.json();
     },
     onSuccess: (result) => {
-      if (result.type === 'direct') {
-        toast({
-          title: 'Member Added',
-          description: 'The user has been successfully added to your house',
-        });
-      } else {
-        toast({
-          title: 'Invitation Sent',
-          description: `An invitation has been sent to ${inviteEmail}. They will be added to your house once they accept.`,
-        });
-        console.log('Invite link:', result.data.inviteLink);
-      }
+      toast({
+        title: 'Invitation Sent',
+        description: `An invitation has been sent to ${inviteEmail}. They will be added to your house once they accept.`,
+      });
+      console.log('Invite link:', result.inviteLink);
       queryClient.invalidateQueries({ queryKey: [`/api/houses/${currentHouse?.id}/members`] });
       queryClient.invalidateQueries({ queryKey: [`/api/houses/${currentHouse?.id}/invitations`] });
       setShowInviteDialog(false);
