@@ -160,3 +160,18 @@ export async function promptInstall(): Promise<boolean> {
 export function canInstall(): boolean {
   return deferredPrompt !== null;
 }
+
+// Check if device is iOS
+export function isIOS(): boolean {
+  return /iPad|iPhone|iPod/.test(navigator.userAgent) && !(window as any).MSStream;
+}
+
+// Check if running on iOS Safari (not in standalone mode)
+export function isIOSSafari(): boolean {
+  const ua = window.navigator.userAgent;
+  const iOS = /iPad|iPhone|iPod/.test(ua);
+  const webkit = /WebKit/.test(ua);
+  const standalone = (window.navigator as any).standalone;
+
+  return iOS && webkit && !standalone;
+}

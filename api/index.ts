@@ -74,6 +74,28 @@ app.post('/api/user/check', async (req, res) => {
   }
 });
 
+// Get current user by UID
+app.get('/api/users/me', async (req, res) => {
+  try {
+    const { uid } = req.query;
+
+    if (!uid || typeof uid !== 'string') {
+      return res.status(400).json({ message: 'UID is required' });
+    }
+
+    const user = await storage.getUserByUid(uid);
+
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.json(user);
+  } catch (error) {
+    console.error('Error getting current user:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // Get all users
 app.get('/api/users', async (req, res) => {
   try {

@@ -33,20 +33,34 @@ function App() {
     queryKey: ['/api/users/me', user?.uid],
     queryFn: async () => {
       if (!user) return null;
-      const res = await fetch('/api/users');
-      if (!res.ok) throw new Error('Failed to fetch users');
-      const users = await res.json();
-      return users.find((u: any) => u.uid === user.uid);
+      const res = await fetch(`/api/users/me?uid=${user.uid}`);
+      if (!res.ok) {
+        if (res.status === 404) {
+          console.warn('User not found in database');
+          return null;
+        }
+        throw new Error('Failed to fetch current user');
+      }
+      return res.json();
     },
     enabled: !!user,
+    retry: 1,
   });
 
   // Check for pending invitations
   const { data: pendingInvitations = [] } = useQuery({
     queryKey: ['/api/invitations/pending', dbUser?.email],
     queryFn: async () => {
-      if (!dbUser) return [];
-      // Get all invitations for this email
+      if (!dbUser?.email) return [];
+
+      // If user has no houses yet, they can't check invitations via houses
+      // This query would need a dedicated endpoint like GET /api/invitations/by-email/:email
+      // For now, return empty array if no houses
+      if (houses.length === 0) {
+        return [];
+      }
+
+      // Get all invitations for this email from all houses
       const allInvites = await Promise.all(
         houses.map(async (house) => {
           const res = await fetch(`/api/houses/${house.id}/invitations`);
@@ -57,7 +71,7 @@ function App() {
       const flat = allInvites.flat();
       return flat.filter((inv: any) => inv.email === dbUser.email && inv.status === 'pending');
     },
-    enabled: !!dbUser && houses.length > 0,
+    enabled: !!dbUser?.email,
   });
 
   // Show create house modal when user has no houses and no pending invitations
