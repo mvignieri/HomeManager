@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from '@/context/app-context';
-import { Settings as SettingsIcon, Users, Shield, UserPlus, Home, Mail } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Shield, UserPlus, Home, Mail, Trash2, AlertTriangle } from 'lucide-react';
 import type { HouseMember, User } from '@shared/schema';
 import Navbar from '@/components/layout/navbar';
 import Sidebar from '@/components/layout/sidebar';
@@ -252,6 +252,56 @@ export default function SettingsPage() {
     },
   });
 
+  const removeMemberMutation = useMutation({
+    mutationFn: async (memberId: number) => {
+      const res = await fetch(`/api/houses/${currentHouse?.id}/members/${memberId}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to remove member');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'Member Removed',
+        description: 'The member has been successfully removed from the house',
+      });
+      queryClient.invalidateQueries({ queryKey: [`/api/houses/${currentHouse?.id}/members`] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to remove member',
+        variant: 'destructive',
+      });
+    },
+  });
+
+  const deleteHouseMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch(`/api/houses/${currentHouse?.id}`, {
+        method: 'DELETE',
+      });
+      if (!res.ok) throw new Error('Failed to delete house');
+      return res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: 'House Deleted',
+        description: 'The house has been successfully deleted',
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/houses'] });
+      // Redirect to home or force refresh
+      window.location.href = '/';
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Error',
+        description: error.message || 'Failed to delete house',
+        variant: 'destructive',
+      });
+    },
+  });
+
   const getRoleBadge = (role: string) => {
     switch (role) {
       case 'owner':
@@ -392,6 +442,69 @@ export default function SettingsPage() {
                 <span className="text-sm text-gray-600">Your Role</span>
                 {currentMember && getRoleBadge(currentMember.role)}
               </div>
+
+              {/* Danger Zone - Only for owners */}
+              {currentMember?.role === 'owner' && (
+                <div className="mt-6 pt-6 border-t border-red-200">
+                  <div className="flex items-start gap-3 p-4 bg-red-50 border border-red-200 rounded-lg">
+                    <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+                    <div className="flex-1">
+                      <h4 className="font-semibold text-red-900 text-sm">Danger Zone</h4>
+                      <p className="text-xs text-red-700 mt-1">
+                        Deleting this house will permanently remove all members, tasks, and devices. This action cannot be undone.
+                      </p>
+                      <Dialog>
+                        <DialogTrigger asChild>
+                          <Button
+                            variant="destructive"
+                            size="sm"
+                            className="mt-3"
+                          >
+                            <Trash2 className="h-4 w-4 mr-2" />
+                            Delete House
+                          </Button>
+                        </DialogTrigger>
+                        <DialogContent>
+                          <DialogHeader>
+                            <DialogTitle className="flex items-center gap-2 text-red-600">
+                              <AlertTriangle className="h-5 w-5" />
+                              Delete House?
+                            </DialogTitle>
+                            <DialogDescription>
+                              This will permanently delete "{currentHouse?.name}" and all associated data including:
+                            </DialogDescription>
+                          </DialogHeader>
+                          <div className="space-y-2 text-sm text-gray-600">
+                            <p>• All house members will be removed</p>
+                            <p>• All tasks will be deleted</p>
+                            <p>• All devices will be removed</p>
+                            <p>• All pending invitations will be cancelled</p>
+                          </div>
+                          <p className="text-sm font-semibold text-red-600">
+                            This action cannot be undone!
+                          </p>
+                          <DialogFooter>
+                            <Button variant="outline" onClick={() => {}}>
+                              Cancel
+                            </Button>
+                            <Button
+                              variant="destructive"
+                              onClick={() => {
+                                if (window.confirm(`Type "${currentHouse?.name}" to confirm deletion`)) {
+                                  deleteHouseMutation.mutate();
+                                }
+                              }}
+                              disabled={deleteHouseMutation.isPending}
+                            >
+                              {deleteHouseMutation.isPending ? 'Deleting...' : 'Delete House Permanently'}
+                            </Button>
+                          </DialogFooter>
+                        </DialogContent>
+                      </Dialog>
+                    </div>
+                  </div>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>
@@ -495,6 +608,20 @@ export default function SettingsPage() {
                       </div>
                       <div className="flex items-center gap-2">
                         {getRoleBadge(member.role)}
+                        {member.userId !== dbUser?.id && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              if (window.confirm(`Are you sure you want to remove ${userInfo?.displayName || 'this member'} from the house?`)) {
+                                removeMemberMutation.mutate(member.id);
+                              }
+                            }}
+                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </Button>
+                        )}
                         <Dialog>
                           <DialogTrigger asChild>
                             <Button

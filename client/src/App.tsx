@@ -76,14 +76,14 @@ function App() {
 
   // Debug logging for house creation
   React.useEffect(() => {
-    console.log('House Creation Debug:', {
-      hasUser: !!user,
-      hasDbUser: !!dbUser,
-      housesCount: houses.length,
-      pendingInvitationsCount: pendingInvitations.length,
-      loading,
-      location,
-    });
+    console.log('=== APP STATE DEBUG ===');
+    console.log('Firebase User:', user?.email);
+    console.log('DB User:', dbUser);
+    console.log('Houses:', houses);
+    console.log('Loading:', loading);
+    console.log('Location:', location);
+    console.log('Should show gate?', user && dbUser && houses.length === 0 && !location.startsWith('/accept-invite'));
+    console.log('=====================');
   }, [user, dbUser, houses, pendingInvitations, loading, location]);
 
   // Handle login with Google
@@ -100,11 +100,14 @@ function App() {
     }
   };
 
-  // Show loading spinner
-  if (loading) {
+  // Show loading spinner - also show while dbUser is loading
+  if (loading || (user && !dbUser && !location.startsWith('/accept-invite'))) {
     return (
-      <div className="flex items-center justify-center h-screen">
+      <div className="flex flex-col items-center justify-center h-screen gap-4">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
+        <p className="text-sm text-gray-500">
+          {loading ? 'Loading...' : 'Setting up your account...'}
+        </p>
       </div>
     );
   }
@@ -148,7 +151,18 @@ function App() {
   }
 
   // Block navigation if user has no house (except accept-invite page)
-  if (user && dbUser && houses.length === 0 && !location.startsWith('/accept-invite')) {
+  const shouldShowGate = user && dbUser && houses.length === 0 && !location.startsWith('/accept-invite');
+
+  console.log('GATE CHECK:', {
+    shouldShowGate,
+    hasUser: !!user,
+    hasDbUser: !!dbUser,
+    housesLength: houses.length,
+    housesIsArray: Array.isArray(houses),
+    location
+  });
+
+  if (shouldShowGate) {
     return (
       <>
         <div className="flex flex-col h-screen bg-gradient-to-b from-indigo-500 to-purple-600">
@@ -222,6 +236,7 @@ function App() {
           <CreateHouseModal
             open={showCreateHouseModal}
             userId={dbUser.id}
+            onOpenChange={setShowCreateHouseModal}
             onSuccess={() => {
               refreshHouses();
               setShowCreateHouseModal(false);
@@ -260,6 +275,7 @@ function App() {
         <CreateHouseModal
           open={showCreateHouseModal}
           userId={dbUser.id}
+          onOpenChange={setShowCreateHouseModal}
           onSuccess={() => {
             refreshHouses();
             setShowCreateHouseModal(false);

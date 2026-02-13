@@ -1,15 +1,30 @@
 import 'dotenv/config';
-import { drizzle } from 'drizzle-orm/neon-http';
-import { neon } from '@neondatabase/serverless';
 import * as schema from '../shared/schema.js';
+
+const isProduction = process.env.NODE_ENV === 'production';
 
 if (!process.env.DATABASE_URL) {
   throw new Error('DATABASE_URL is not set');
 }
 
-// Create Neon serverless connection (optimized for Vercel)
-// Uses HTTP for better serverless compatibility
-const sql = neon(process.env.DATABASE_URL);
+let db: any;
 
-// Create drizzle instance
-export const db = drizzle(sql, { schema });
+if (isProduction) {
+  // Production: Use Neon serverless driver (HTTP-based for Vercel)
+  const { drizzle: drizzleNeon } = await import('drizzle-orm/neon-http');
+  const { neon } = await import('@neondatabase/serverless');
+
+  const sql = neon(process.env.DATABASE_URL);
+  db = drizzleNeon(sql, { schema });
+  console.log('✓ Using Neon serverless driver (production)');
+} else {
+  // Development: Use standard postgres driver
+  const { drizzle: drizzlePostgres } = await import('drizzle-orm/postgres-js');
+  const postgres = (await import('postgres')).default;
+
+  const queryClient = postgres(process.env.DATABASE_URL);
+  db = drizzlePostgres(queryClient, { schema });
+  console.log('✓ Using standard postgres driver (development)');
+}
+
+export { db };

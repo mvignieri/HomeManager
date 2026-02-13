@@ -42,7 +42,13 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Fetch houses for the current user
   const { data: houses = [], refetch: refreshHouses } = useQuery<House[]>({
-    queryKey: ['/api/houses'],
+    queryKey: ['/api/houses', user?.uid],
+    queryFn: async () => {
+      if (!user?.uid) return [];
+      const res = await fetch(`/api/houses?uid=${user.uid}`);
+      if (!res.ok) throw new Error('Failed to fetch houses');
+      return res.json();
+    },
     enabled: !!user,
   });
 

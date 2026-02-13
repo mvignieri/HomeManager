@@ -27,12 +27,14 @@ export interface IStorage {
   getHousesByUser(userId: number): Promise<House[]>;
   createHouse(house: InsertHouse): Promise<House>;
   updateHouse(id: number, updates: Partial<House>): Promise<House | undefined>;
+  deleteHouse(id: number): Promise<void>;
   
   // House member methods
   getHouseMember(id: number): Promise<HouseMember | undefined>;
   getHouseMembers(houseId: number): Promise<HouseMember[]>;
   addHouseMember(member: InsertHouseMember): Promise<HouseMember>;
   updateHouseMember(id: number, updates: Partial<HouseMember>): Promise<HouseMember | undefined>;
+  removeHouseMember(id: number): Promise<void>;
   
   // Task methods
   getTask(id: number): Promise<Task | undefined>;
@@ -183,6 +185,22 @@ export class MemStorage implements IStorage {
     return updatedHouse;
   }
 
+  async deleteHouse(id: number): Promise<void> {
+    this.houses.delete(id);
+    // Also delete all related data
+    const membersToDelete = Array.from(this.houseMembers.values()).filter(m => m.houseId === id);
+    membersToDelete.forEach(m => this.houseMembers.delete(m.id));
+
+    const tasksToDelete = Array.from(this.tasks.values()).filter(t => t.houseId === id);
+    tasksToDelete.forEach(t => this.tasks.delete(t.id));
+
+    const devicesToDelete = Array.from(this.devices.values()).filter(d => d.houseId === id);
+    devicesToDelete.forEach(d => this.devices.delete(d.id));
+
+    const invitationsToDelete = Array.from(this.invitations.values()).filter(i => i.houseId === id);
+    invitationsToDelete.forEach(i => this.invitations.delete(i.id));
+  }
+
   // House member methods
   async getHouseMember(id: number): Promise<HouseMember | undefined> {
     return this.houseMembers.get(id);
@@ -212,7 +230,11 @@ export class MemStorage implements IStorage {
     this.houseMembers.set(id, updatedMember);
     return updatedMember;
   }
-  
+
+  async removeHouseMember(id: number): Promise<void> {
+    this.houseMembers.delete(id);
+  }
+
   // Task methods
   async getTask(id: number): Promise<Task | undefined> {
     return this.tasks.get(id);

@@ -1,4 +1,4 @@
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, inArray } from 'drizzle-orm';
 import { db } from './db.js';
 import {
   users, type User, type InsertUser,
@@ -68,7 +68,7 @@ export class PostgresStorage implements IStorage {
     return db
       .select()
       .from(houses)
-      .where(eq(houses.id, houseIds[0])); // Note: This needs to be improved for multiple houses
+      .where(inArray(houses.id, houseIds));
   }
 
   async createHouse(insertHouse: InsertHouse): Promise<House> {
@@ -98,6 +98,10 @@ export class PostgresStorage implements IStorage {
       .where(eq(houseMembers.id, id))
       .returning();
     return result[0];
+  }
+
+  async removeHouseMember(id: number): Promise<void> {
+    await db.delete(houseMembers).where(eq(houseMembers.id, id));
   }
 
   // Task methods
@@ -268,6 +272,27 @@ export class PostgresStorage implements IStorage {
       .where(eq(houses.id, id))
       .returning();
     return result[0];
+  }
+
+  async deleteHouse(id: number): Promise<void> {
+    // Delete in order to respect foreign key constraints
+    // Delete house invitations
+    await db.delete(houseInvitations).where(eq(houseInvitations.houseId, id));
+
+    // Delete house members
+    await db.delete(houseMembers).where(eq(houseMembers.houseId, id));
+
+    // Delete tasks
+    await db.delete(tasks).where(eq(tasks.houseId, id));
+
+    // Delete devices
+    await db.delete(devices).where(eq(devices.houseId, id));
+
+    // Delete notifications
+    await db.delete(notifications).where(eq(notifications.houseId, id));
+
+    // Finally delete the house
+    await db.delete(houses).where(eq(houses.id, id));
   }
 }
 

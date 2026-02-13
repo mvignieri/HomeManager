@@ -18,15 +18,16 @@ interface CreateHouseModalProps {
   open: boolean;
   userId: number;
   onSuccess: () => void;
+  onOpenChange?: (open: boolean) => void;
 }
 
-export default function CreateHouseModal({ open, userId, onSuccess }: CreateHouseModalProps) {
+export default function CreateHouseModal({ open, userId, onSuccess, onOpenChange }: CreateHouseModalProps) {
   const [houseName, setHouseName] = useState('');
   const { toast } = useToast();
 
   const createHouseMutation = useMutation({
     mutationFn: async (name: string) => {
-      // Create house
+      // Create house (endpoint automatically adds creator as owner)
       const houseRes = await fetch('/api/houses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -35,19 +36,13 @@ export default function CreateHouseModal({ open, userId, onSuccess }: CreateHous
           createdById: userId,
         }),
       });
-      if (!houseRes.ok) throw new Error('Failed to create house');
-      const house = await houseRes.json();
 
-      // Add user as owner
-      const memberRes = await fetch(`/api/houses/${house.id}/members`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          userId,
-          role: 'owner',
-        }),
-      });
-      if (!memberRes.ok) throw new Error('Failed to add user as owner');
+      if (!houseRes.ok) {
+        const error = await houseRes.json();
+        throw new Error(error.message || 'Failed to create house');
+      }
+
+      const house = await houseRes.json();
 
       // Create default devices
       const devices = [
@@ -91,8 +86,16 @@ export default function CreateHouseModal({ open, userId, onSuccess }: CreateHous
   });
 
   return (
-    <Dialog open={open}>
-      <DialogContent className="sm:max-w-md" onInteractOutside={(e) => e.preventDefault()}>
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      <DialogContent
+        className="sm:max-w-md"
+        onInteractOutside={(e) => {
+          // Prevent closing while creating house
+          if (createHouseMutation.isPending) {
+            e.preventDefault();
+          }
+        }}
+      >
         <DialogHeader>
           <div className="flex justify-center mb-4">
             <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center">

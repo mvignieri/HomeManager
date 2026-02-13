@@ -138,7 +138,22 @@ app.post('/api/users/fcm-token', async (req, res) => {
 // Get houses for current user
 app.get('/api/houses', async (req, res) => {
   try {
-    const houses = await storage.getAllHouses();
+    const { uid } = req.query;
+
+    if (!uid || typeof uid !== 'string') {
+      return res.status(400).json({ message: 'UID is required' });
+    }
+
+    // Get user by Firebase UID
+    const user = await storage.getUserByUid(uid);
+
+    if (!user) {
+      // User not found - return empty array
+      return res.json([]);
+    }
+
+    // Get only houses where user is a member
+    const houses = await storage.getHousesByUser(user.id);
     res.json(houses);
   } catch (error) {
     console.error('Error getting houses:', error);
@@ -150,6 +165,19 @@ app.get('/api/houses', async (req, res) => {
 app.post('/api/houses', async (req, res) => {
   try {
     const houseData = insertHouseSchema.parse(req.body);
+
+    // Check if user already has a house with the same name
+    const userHouses = await storage.getHousesByUser(houseData.createdById);
+    const duplicateName = userHouses.find(
+      (h) => h.name.toLowerCase() === houseData.name.toLowerCase()
+    );
+
+    if (duplicateName) {
+      return res.status(400).json({
+        message: 'You already have a house with this name. Please choose a different name.',
+      });
+    }
+
     const house = await storage.createHouse(houseData);
 
     // Add creator as owner
@@ -179,6 +207,18 @@ app.patch('/api/houses/:id', async (req, res) => {
     res.json(house);
   } catch (error) {
     console.error('Error updating house:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Delete house
+app.delete('/api/houses/:id', async (req, res) => {
+  try {
+    const houseId = parseInt(req.params.id);
+    await storage.deleteHouse(houseId);
+    res.json({ message: 'House deleted successfully' });
+  } catch (error) {
+    console.error('Error deleting house:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -443,6 +483,18 @@ app.patch('/api/houses/:houseId/members/:memberId', async (req, res) => {
     res.json(member);
   } catch (error) {
     console.error('Error updating house member:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Remove house member
+app.delete('/api/houses/:houseId/members/:memberId', async (req, res) => {
+  try {
+    const memberId = parseInt(req.params.memberId);
+    await storage.removeHouseMember(memberId);
+    res.json({ message: 'Member removed successfully' });
+  } catch (error) {
+    console.error('Error removing house member:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
