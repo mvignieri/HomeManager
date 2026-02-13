@@ -47,29 +47,15 @@ function App() {
     retry: 1,
   });
 
-  // Check for pending invitations
+  // Check for pending invitations by email
   const { data: pendingInvitations = [] } = useQuery({
     queryKey: ['/api/invitations/pending', dbUser?.email],
     queryFn: async () => {
       if (!dbUser?.email) return [];
 
-      // If user has no houses yet, they can't check invitations via houses
-      // This query would need a dedicated endpoint like GET /api/invitations/by-email/:email
-      // For now, return empty array if no houses
-      if (houses.length === 0) {
-        return [];
-      }
-
-      // Get all invitations for this email from all houses
-      const allInvites = await Promise.all(
-        houses.map(async (house) => {
-          const res = await fetch(`/api/houses/${house.id}/invitations`);
-          if (!res.ok) return [];
-          return res.json();
-        })
-      );
-      const flat = allInvites.flat();
-      return flat.filter((inv: any) => inv.email === dbUser.email && inv.status === 'pending');
+      const res = await fetch(`/api/invitations/by-email/${encodeURIComponent(dbUser.email)}`);
+      if (!res.ok) return [];
+      return res.json();
     },
     enabled: !!dbUser?.email,
   });
@@ -210,6 +196,38 @@ function App() {
                 </div>
 
                 <div className="space-y-4">
+                  {/* Show pending invitations if available */}
+                  {pendingInvitations.length > 0 && (
+                    <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 space-y-3">
+                      <div className="flex items-center gap-2 text-blue-900">
+                        <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 19v-8.93a2 2 0 01.89-1.664l7-4.666a2 2 0 012.22 0l7 4.666A2 2 0 0121 10.07V19M3 19a2 2 0 002 2h14a2 2 0 002-2M3 19l6.75-4.5M21 19l-6.75-4.5M3 10l6.75 4.5M21 10l-6.75 4.5m0 0l-1.14.76a2 2 0 01-2.22 0l-1.14-.76" />
+                        </svg>
+                        <h4 className="font-semibold text-sm">You have {pendingInvitations.length} pending invitation{pendingInvitations.length > 1 ? 's' : ''}!</h4>
+                      </div>
+                      {pendingInvitations.map((inv: any) => (
+                        <div key={inv.id} className="bg-white rounded p-3 space-y-2">
+                          <div className="flex justify-between items-start">
+                            <div>
+                              <p className="font-medium text-sm">{inv.house.name}</p>
+                              <p className="text-xs text-gray-600">Role: <span className="capitalize font-medium">{inv.role}</span></p>
+                            </div>
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                // Redirect to accept-invite page with token
+                                window.location.href = `/accept-invite?token=${inv.token}`;
+                              }}
+                              className="text-xs"
+                            >
+                              Accept
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
                   <Button
                     className="w-full py-6 text-lg"
                     size="lg"
@@ -231,18 +249,22 @@ function App() {
                     Create Your First House
                   </Button>
 
-                  <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                      <div className="w-full border-t border-gray-300"></div>
-                    </div>
-                    <div className="relative flex justify-center text-sm">
-                      <span className="px-2 bg-white text-gray-500">or</span>
-                    </div>
-                  </div>
+                  {pendingInvitations.length === 0 && (
+                    <>
+                      <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                          <div className="w-full border-t border-gray-300"></div>
+                        </div>
+                        <div className="relative flex justify-center text-sm">
+                          <span className="px-2 bg-white text-gray-500">or</span>
+                        </div>
+                      </div>
 
-                  <p className="text-sm text-center text-gray-500">
-                    If you received an invitation email, click the link to join an existing house.
-                  </p>
+                      <p className="text-sm text-center text-gray-500">
+                        If you received an invitation email, click the link to join an existing house.
+                      </p>
+                    </>
+                  )}
 
                   <div className="pt-4 mt-4 border-t border-gray-200">
                     <div className="flex items-center justify-between">

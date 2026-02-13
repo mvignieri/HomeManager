@@ -254,10 +254,13 @@ export default function SettingsPage() {
 
   const removeMemberMutation = useMutation({
     mutationFn: async (memberId: number) => {
-      const res = await fetch(`/api/houses/${currentHouse?.id}/members/${memberId}`, {
+      const res = await fetch(`/api/houses/${currentHouse?.id}/members/${memberId}?requestingUserId=${dbUser?.id}`, {
         method: 'DELETE',
       });
-      if (!res.ok) throw new Error('Failed to remove member');
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to remove member');
+      }
       return res.json();
     },
     onSuccess: () => {
@@ -609,18 +612,33 @@ export default function SettingsPage() {
                       <div className="flex items-center gap-2">
                         {getRoleBadge(member.role)}
                         {member.userId !== dbUser?.id && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              if (window.confirm(`Are you sure you want to remove ${userInfo?.displayName || 'this member'} from the house?`)) {
-                                removeMemberMutation.mutate(member.id);
-                              }
-                            }}
-                            className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
+                          <>
+                            {/* Only allow removal if: user is not removing themselves, and if removing an admin, the current user must also be admin */}
+                            {(member.role !== 'admin' || currentMember?.role === 'admin') ? (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() => {
+                                  if (window.confirm(`Are you sure you want to remove ${userInfo?.displayName || 'this member'} from the house?`)) {
+                                    removeMemberMutation.mutate(member.id);
+                                  }
+                                }}
+                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            ) : (
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                disabled
+                                title="Only admins can remove other admins"
+                                className="text-gray-400 cursor-not-allowed"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            )}
+                          </>
                         )}
                         <Dialog>
                           <DialogTrigger asChild>
