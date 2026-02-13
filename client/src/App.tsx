@@ -74,16 +74,16 @@ function App() {
     enabled: !!dbUser?.email,
   });
 
-  // Show create house modal when user has no houses and no pending invitations
+  // Debug logging for house creation
   React.useEffect(() => {
-    if (user && dbUser && houses.length === 0 && pendingInvitations.length === 0 && !loading) {
-      // Don't show modal if we're on the accept-invite page
-      if (!location.startsWith('/accept-invite')) {
-        setShowCreateHouseModal(true);
-      }
-    } else {
-      setShowCreateHouseModal(false);
-    }
+    console.log('House Creation Debug:', {
+      hasUser: !!user,
+      hasDbUser: !!dbUser,
+      housesCount: houses.length,
+      pendingInvitationsCount: pendingInvitations.length,
+      loading,
+      location,
+    });
   }, [user, dbUser, houses, pendingInvitations, loading, location]);
 
   // Handle login with Google
@@ -147,7 +147,99 @@ function App() {
     );
   }
 
-  // Show main application if authenticated
+  // Block navigation if user has no house (except accept-invite page)
+  if (user && dbUser && houses.length === 0 && !location.startsWith('/accept-invite')) {
+    return (
+      <>
+        <div className="flex flex-col h-screen bg-gradient-to-b from-indigo-500 to-purple-600">
+          <div className="flex-grow flex items-center justify-center p-6">
+            <Card className="max-w-lg w-full bg-white">
+              <CardContent className="p-8 space-y-6">
+                <div className="text-center">
+                  <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg
+                      className="w-10 h-10 text-primary"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
+                      />
+                    </svg>
+                  </div>
+                  <h1 className="text-2xl font-bold text-gray-900 mb-2">Welcome to HomeManager!</h1>
+                  <p className="text-gray-600 mb-6">
+                    To get started, you need to either create your own house or accept an invitation from someone else.
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <Button
+                    className="w-full py-6 text-lg"
+                    size="lg"
+                    onClick={() => setShowCreateHouseModal(true)}
+                  >
+                    <svg
+                      className="w-5 h-5 mr-2"
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M12 4v16m8-8H4"
+                      />
+                    </svg>
+                    Create Your First House
+                  </Button>
+
+                  <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                      <div className="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                      <span className="px-2 bg-white text-gray-500">or</span>
+                    </div>
+                  </div>
+
+                  <p className="text-sm text-center text-gray-500">
+                    If you received an invitation email, click the link to join an existing house.
+                  </p>
+                </div>
+              </CardContent>
+            </Card>
+          </div>
+        </div>
+
+        {/* Create House Modal - MUST be shown */}
+        {dbUser && (
+          <CreateHouseModal
+            open={showCreateHouseModal}
+            userId={dbUser.id}
+            onSuccess={() => {
+              refreshHouses();
+              setShowCreateHouseModal(false);
+              toast({
+                title: 'House Created!',
+                description: 'Welcome to your new house. You are now the owner.',
+              });
+            }}
+          />
+        )}
+
+        {/* PWA Install Prompt */}
+        {user && <PWAInstallPrompt />}
+      </>
+    );
+  }
+
+  // Show main application if authenticated AND has a house
   return (
     <>
       <Switch>

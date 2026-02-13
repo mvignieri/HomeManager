@@ -46,12 +46,15 @@ export default function SettingsPage() {
     queryKey: ['/api/users/me', firebaseUser?.uid],
     queryFn: async () => {
       if (!firebaseUser) return null;
-      const res = await fetch('/api/users');
-      if (!res.ok) throw new Error('Failed to fetch users');
-      const users = await res.json();
-      return users.find((u: User) => u.uid === firebaseUser.uid);
+      const res = await fetch(`/api/users/me?uid=${firebaseUser.uid}`);
+      if (!res.ok) {
+        if (res.status === 404) return null;
+        throw new Error('Failed to fetch current user');
+      }
+      return res.json();
     },
     enabled: !!firebaseUser,
+    retry: 1,
   });
 
   // Get house members
@@ -292,6 +295,7 @@ export default function SettingsPage() {
     );
   }
 
+  // Check if user is admin (currentHouse is guaranteed by App.tsx gate)
   if (!isAdmin) {
     return (
       <div className="flex flex-col h-screen bg-gray-50">
@@ -303,7 +307,7 @@ export default function SettingsPage() {
               <Shield className="h-12 w-12 mx-auto mb-2 text-gray-400" />
               <CardTitle className="text-center">Admin Access Required</CardTitle>
               <CardDescription className="text-center">
-                You need admin permissions to access this page.
+                You need admin permissions to access this house settings.
               </CardDescription>
             </CardHeader>
           </Card>
