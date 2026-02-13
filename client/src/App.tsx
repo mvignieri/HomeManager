@@ -12,7 +12,7 @@ import InvitationsPage from "@/pages/invitations";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
-import { signInWithGoogle } from "@/lib/firebase";
+import { signInWithGoogle, signOut } from "@/lib/firebase";
 import { useAppContext } from "@/context/app-context";
 import CreateHouseModal from "@/components/create-house-modal";
 import PWAInstallPrompt from "@/components/pwa-install-prompt";
@@ -95,6 +95,24 @@ function App() {
       toast({
         title: "Login Error",
         description: error.message || "Failed to sign in with Google",
+        variant: "destructive"
+      });
+    }
+  };
+
+  // Handle logout
+  const handleLogout = async () => {
+    try {
+      await signOut();
+      toast({
+        title: "Logged Out",
+        description: "You have been successfully logged out",
+      });
+    } catch (error: any) {
+      console.error("Logout error:", error);
+      toast({
+        title: "Logout Error",
+        description: error.message || "Failed to log out",
         variant: "destructive"
       });
     }
@@ -225,6 +243,47 @@ function App() {
                   <p className="text-sm text-center text-gray-500">
                     If you received an invitation email, click the link to join an existing house.
                   </p>
+
+                  <div className="pt-4 mt-4 border-t border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <div className="w-8 h-8 rounded-full bg-gray-200 flex items-center justify-center overflow-hidden">
+                          {user?.photoURL ? (
+                            <img src={user.photoURL} alt="User" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-xs font-medium text-gray-600">
+                              {user?.email?.charAt(0).toUpperCase()}
+                            </span>
+                          )}
+                        </div>
+                        <div className="text-left">
+                          <p className="text-xs font-medium text-gray-700">{user?.displayName || 'User'}</p>
+                          <p className="text-xs text-gray-500">{user?.email}</p>
+                        </div>
+                      </div>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        onClick={handleLogout}
+                        className="text-gray-600 hover:text-gray-900"
+                      >
+                        <svg
+                          className="w-4 h-4 mr-2"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                          />
+                        </svg>
+                        Logout
+                      </Button>
+                    </div>
+                  </div>
                 </div>
               </CardContent>
             </Card>
