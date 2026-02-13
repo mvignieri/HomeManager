@@ -392,6 +392,38 @@ app.get('/api/invitations/:token', async (req, res) => {
   }
 });
 
+// Get invitations by email
+app.get('/api/invitations/by-email/:email', async (req, res) => {
+  try {
+    const { email } = req.params;
+
+    if (!email) {
+      return res.status(400).json({ message: 'Email is required' });
+    }
+
+    // Get all invitations for this email
+    const invitations = await storage.getInvitationsByEmail(email);
+
+    // Filter for pending invitations and include house information
+    const pendingInvitations = await Promise.all(
+      invitations
+        .filter(inv => inv.status === 'pending' && new Date() <= new Date(inv.expiresAt))
+        .map(async (inv) => {
+          const house = await storage.getHouse(inv.houseId);
+          return {
+            ...inv,
+            house,
+          };
+        })
+    );
+
+    res.json(pendingInvitations);
+  } catch (error) {
+    console.error('Error getting invitations by email:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // Accept invitation
 app.post('/api/invitations/:token/accept', async (req, res) => {
   try {
@@ -491,6 +523,27 @@ app.patch('/api/houses/:houseId/members/:memberId', async (req, res) => {
 app.delete('/api/houses/:houseId/members/:memberId', async (req, res) => {
   try {
     const memberId = parseInt(req.params.memberId);
+    const requestingUserId = req.query.requestingUserId ? parseInt(req.query.requestingUserId as string) : undefined;
+
+    // Get the member being removed
+    const memberToRemove = await storage.getHouseMember(memberId);
+    if (!memberToRemove) {
+      return res.status(404).json({ message: 'Member not found' });
+    }
+
+    // If the member being removed is an admin, verify the requesting user is also an admin
+    if (memberToRemove.role === 'admin' && requestingUserId) {
+      const houseId = parseInt(req.params.houseId);
+      const members = await storage.getHouseMembers(houseId);
+      const requestingMember = members.find(m => m.userId === requestingUserId);
+
+      if (!requestingMember || requestingMember.role !== 'admin') {
+        return res.status(403).json({
+          message: 'Only admins can remove other admins'
+        });
+      }
+    }
+
     await storage.removeHouseMember(memberId);
     res.json({ message: 'Member removed successfully' });
   } catch (error) {

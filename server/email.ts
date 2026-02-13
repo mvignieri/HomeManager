@@ -1,24 +1,27 @@
 import nodemailer from 'nodemailer';
-import { Resend } from 'resend';
 
-// Determine environment - if RESEND_API_KEY is present, we're in production
-// This is more reliable than NODE_ENV on serverless platforms
-const isProduction = !!process.env.RESEND_API_KEY;
+// Determine environment - if RESEND_API_KEY is present, use Resend SMTP
+const useResend = !!process.env.RESEND_API_KEY;
 
-// Initialize Resend if API key is present
-const resend = process.env.RESEND_API_KEY
-  ? new Resend(process.env.RESEND_API_KEY)
-  : null;
-
-// Create Nodemailer transporter for development (Mailhog)
-const transporter = !isProduction
+// Create email transporter
+// In production: Use Resend SMTP
+// In development: Use Mailhog
+const transporter = useResend
   ? nodemailer.createTransport({
+      host: 'smtp.resend.com',
+      port: 465,
+      secure: true,
+      auth: {
+        user: 'resend',
+        pass: process.env.RESEND_API_KEY,
+      },
+    })
+  : nodemailer.createTransport({
       host: 'localhost',
       port: 1025,
       secure: false,
       ignoreTLS: true,
-    })
-  : null;
+    });
 
 export interface InvitationEmailData {
   email: string;
@@ -179,41 +182,21 @@ If you didn't expect this invitation, you can safely ignore this email.
   const subject = `You've been invited to join ${houseName} on HomeManager`;
 
   console.log(`📧 Attempting to send email to ${email}`);
-  console.log(`   Environment: ${isProduction ? 'Production (Resend)' : 'Development (Mailhog)'}`);
+  console.log(`   Environment: ${useResend ? 'Production (Resend SMTP)' : 'Development (Mailhog)'}`);
   console.log(`   From: ${fromEmail}`);
   console.log(`   Subject: ${subject}`);
 
   try {
-    if (isProduction && resend) {
-      // Production: Use Resend API
-      console.log('   Using Resend API...');
-      const result = await resend.emails.send({
-        from: fromEmail,
-        to: email,
-        subject: subject,
-        html: htmlContent,
-        text: textContent,
-      });
-      console.log(`✓ Invitation email sent to ${email} via Resend`);
-      console.log(`   Resend response:`, result);
-    } else if (transporter) {
-      // Development: Use Mailhog via Nodemailer
-      console.log('   Using Mailhog...');
-      const result = await transporter.sendMail({
-        from: fromEmail,
-        to: email,
-        subject: subject,
-        text: textContent,
-        html: htmlContent,
-      });
-      console.log(`✓ Invitation email sent to ${email} via Mailhog`);
-      console.log(`   Mailhog messageId:`, result.messageId);
-    } else {
-      console.warn('⚠ Email service not configured - email not sent');
-      console.warn('  RESEND_API_KEY present:', !!process.env.RESEND_API_KEY);
-      console.warn('  Resend client initialized:', !!resend);
-      console.warn('  Mailhog transporter:', !!transporter);
-    }
+    const result = await transporter.sendMail({
+      from: fromEmail,
+      to: email,
+      subject: subject,
+      text: textContent,
+      html: htmlContent,
+    });
+
+    console.log(`✓ Invitation email sent to ${email} via ${useResend ? 'Resend SMTP' : 'Mailhog'}`);
+    console.log(`   Message ID:`, result.messageId);
   } catch (error) {
     console.error('✗ Error sending invitation email:', error);
     // Log more details about the error
@@ -227,28 +210,21 @@ If you didn't expect this invitation, you can safely ignore this email.
 
 // Test email connection
 export async function testEmailConnection(): Promise<boolean> {
-  if (isProduction) {
-    // In production with Resend, check if API key is configured
-    if (resend) {
-      console.log('✓ Resend API configured for production');
-      return true;
+  try {
+    await transporter.verify();
+    if (useResend) {
+      console.log('✓ Resend SMTP connection verified (smtp.resend.com:465)');
     } else {
-      console.warn('⚠ Resend API key not found - emails will not be sent');
-      console.warn('  Set RESEND_API_KEY environment variable');
-      return false;
+      console.log('✓ Mailhog connection verified (localhost:1025)');
     }
-  } else {
-    // In development with Mailhog, try to verify connection
-    if (transporter) {
-      try {
-        await transporter.verify();
-        console.log('✓ Mailhog connection verified (localhost:1025)');
-        return true;
-      } catch (error) {
-        console.warn('⚠ Mailhog not running - emails will not be sent');
-        console.warn('  Start Mailhog: docker run -d -p 1025:1025 -p 8025:8025 mailhog/mailhog');
-        return false;
-      }
+    return true;
+  } catch (error) {
+    if (useResend) {
+      console.warn('⚠ Resend SMTP connection failed - check RESEND_API_KEY');
+      console.warn('  Error:', error instanceof Error ? error.message : 'Unknown error');
+    } else {
+      console.warn('⚠ Mailhog not running - emails will not be sent');
+      console.warn('  Start Mailhog: docker run -d -p 1025:1025 -p 8025:8025 mailhog/mailhog');
     }
     return false;
   }
