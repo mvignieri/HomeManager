@@ -562,9 +562,11 @@ export default function SettingsPage() {
                         </SelectTrigger>
                         <SelectContent>
                           <SelectItem value="member">Member</SelectItem>
-                          <SelectItem value="admin">Admin</SelectItem>
-                          {currentMember?.role === 'owner' && (
+                          {(currentMember?.role === 'owner' || currentMember?.role === 'admin') && (
                             <SelectItem value="owner">Owner</SelectItem>
+                          )}
+                          {currentMember?.role === 'admin' && (
+                            <SelectItem value="admin">Admin</SelectItem>
                           )}
                         </SelectContent>
                       </Select>
