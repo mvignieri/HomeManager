@@ -13,9 +13,25 @@ export default function AcceptInvitePage() {
   // Get token from URL query params
   const token = new URLSearchParams(window.location.search).get('token');
   const { user: firebaseUser } = useAuth();
-  const { user: dbUser, setCurrentHouse } = useAppContext();
+  const { setCurrentHouse } = useAppContext();
   const { toast } = useToast();
   const [accepted, setAccepted] = useState(false);
+
+  // Get current database user
+  const { data: dbUser } = useQuery({
+    queryKey: ['/api/users/me', firebaseUser?.uid],
+    queryFn: async () => {
+      if (!firebaseUser) return null;
+      const res = await fetch(`/api/users/me?uid=${firebaseUser.uid}`);
+      if (!res.ok) {
+        if (res.status === 404) return null;
+        throw new Error('Failed to fetch current user');
+      }
+      return res.json();
+    },
+    enabled: !!firebaseUser,
+    retry: 1,
+  });
 
   // Save token to localStorage when page loads
   React.useEffect(() => {
