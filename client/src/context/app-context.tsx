@@ -38,7 +38,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [loading, setLoading] = useState(true);
   const [currentHouse, setCurrentHouse] = useState<House | null>(null);
   const [showCreateHouseModal, setShowCreateHouseModal] = useState(false);
-  const [, setLocation] = useLocation();
+  const [location, setLocation] = useLocation();
 
   // Fetch houses for the current user
   const { data: houses = [], refetch: refreshHouses } = useQuery<House[]>({
@@ -101,8 +101,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           console.log('User verified/created in database');
 
           // Check for pending invitation token
+          // Only redirect if not already on the accept-invite page
           const pendingToken = localStorage.getItem('pendingInviteToken');
-          if (pendingToken) {
+          const currentLocation = window.location.pathname;
+          if (pendingToken && !currentLocation.startsWith('/accept-invite')) {
             console.log('Found pending invitation token, redirecting to accept page');
             // Redirect to accept-invite page with the token
             setTimeout(() => {

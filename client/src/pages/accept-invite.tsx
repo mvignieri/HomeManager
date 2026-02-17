@@ -38,7 +38,7 @@ export default function AcceptInvitePage() {
   };
 
   // Get current database user
-  const { data: dbUser } = useQuery({
+  const { data: dbUser, isLoading: isLoadingDbUser } = useQuery({
     queryKey: ['/api/users/me', firebaseUser?.uid],
     queryFn: async () => {
       if (!firebaseUser) return null;
@@ -221,14 +221,16 @@ export default function AcceptInvitePage() {
 
   // Show invitation details and prompt to login/register if not logged in
   if (!firebaseUser || !dbUser) {
-    // Show loading state while logging in
-    if (loggingIn) {
+    // Show loading state while logging in OR while loading dbUser
+    if (loggingIn || (firebaseUser && isLoadingDbUser)) {
       return (
         <div className="flex items-center justify-center min-h-screen bg-gray-50">
           <Card className="max-w-md">
             <CardContent className="pt-6">
               <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
-              <p className="text-center text-gray-600">Signing in...</p>
+              <p className="text-center text-gray-600">
+                {loggingIn ? 'Signing in...' : 'Loading user data...'}
+              </p>
             </CardContent>
           </Card>
         </div>
