@@ -218,7 +218,8 @@ export default function AcceptInvitePage() {
   }
 
   // Show loading spinner while checking authentication
-  if (authLoading) {
+  // Only show this if we haven't loaded the invitation yet
+  if (authLoading && !inviteData && !error) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <Card className="max-w-md">
