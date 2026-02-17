@@ -24,12 +24,6 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const { toast } = useToast();
 
   useEffect(() => {
-    // Handle redirect result first (if user is returning from Google sign-in)
-    handleRedirectResult().catch((error) => {
-      console.error('Error handling redirect:', error);
-      setError(error.message);
-    });
-
     // Check current auth state immediately
     const currentUser = auth.currentUser;
     if (currentUser) {
@@ -41,6 +35,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
     const timeout = setTimeout(() => {
       setLoading(false);
     }, 2000);
+
+    // Handle redirect result (if user is returning from Google sign-in)
+    handleRedirectResult().catch((error) => {
+      // Ignore errors - onAuthStateChanged will handle the user
+      console.error('Error handling redirect:', error);
+    });
 
     const unsubscribe = auth.onAuthStateChanged((authUser) => {
       clearTimeout(timeout); // Clear timeout if auth responds
