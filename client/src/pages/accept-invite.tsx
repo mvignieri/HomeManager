@@ -18,14 +18,12 @@ export default function AcceptInvitePage() {
   const { setCurrentHouse } = useAppContext();
   const { toast } = useToast();
   const [accepted, setAccepted] = useState(false);
-  const [loggingIn, setLoggingIn] = useState(false);
 
-  // Handle Google Sign-In
+  // Handle Google Sign-In (will redirect to Google and back)
   const handleLogin = async () => {
-    setLoggingIn(true);
     try {
       await signInWithGoogle();
-      // After login, the auth state will change and trigger the auto-accept
+      // Note: Page will redirect, so no need to handle state here
     } catch (error: any) {
       console.error("Login error:", error);
       toast({
@@ -33,7 +31,6 @@ export default function AcceptInvitePage() {
         description: error.message || "Failed to sign in with Google",
         variant: "destructive"
       });
-      setLoggingIn(false);
     }
   };
 
@@ -52,6 +49,20 @@ export default function AcceptInvitePage() {
     enabled: !!firebaseUser,
     retry: 1,
   });
+
+  // Debug logging
+  React.useEffect(() => {
+    console.log('ACCEPT-INVITE STATE:', {
+      token,
+      hasFirebaseUser: !!firebaseUser,
+      hasDbUser: !!dbUser,
+      isLoadingDbUser,
+      authLoading,
+      isLoading,
+      hasError: !!error,
+      hasInviteData: !!inviteData,
+    });
+  }, [token, firebaseUser, dbUser, isLoadingDbUser, authLoading, isLoading, error, inviteData]);
 
   // Save token to localStorage when page loads
   React.useEffect(() => {
@@ -121,21 +132,6 @@ export default function AcceptInvitePage() {
       });
     },
   });
-
-  // Reset loggingIn state when user logs in successfully or after timeout
-  useEffect(() => {
-    if (firebaseUser && loggingIn) {
-      setLoggingIn(false);
-    }
-
-    // Safety timeout: reset loggingIn after 10 seconds if still true
-    if (loggingIn) {
-      const timeout = setTimeout(() => {
-        setLoggingIn(false);
-      }, 10000);
-      return () => clearTimeout(timeout);
-    }
-  }, [firebaseUser, loggingIn]);
 
   // Auto-accept if user is logged in and invitation is valid
   useEffect(() => {
@@ -259,16 +255,14 @@ export default function AcceptInvitePage() {
 
   // Show invitation details and prompt to login/register if not logged in
   if (!firebaseUser || !dbUser) {
-    // Show loading state while logging in OR while loading dbUser
-    if (loggingIn || (firebaseUser && isLoadingDbUser)) {
+    // Show loading state while loading dbUser
+    if (firebaseUser && isLoadingDbUser) {
       return (
         <div className="flex items-center justify-center min-h-screen bg-gray-50">
           <Card className="max-w-md">
             <CardContent className="pt-6">
               <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
-              <p className="text-center text-gray-600">
-                {loggingIn ? 'Signing in...' : 'Loading user data...'}
-              </p>
+              <p className="text-center text-gray-600">Loading user data...</p>
             </CardContent>
           </Card>
         </div>
@@ -302,22 +296,12 @@ export default function AcceptInvitePage() {
               </p>
               <Button
                 onClick={handleLogin}
-                disabled={loggingIn}
                 className="w-full flex items-center justify-center"
               >
-                {loggingIn ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Signing in...
-                  </>
-                ) : (
-                  <>
-                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                      <path d="M12.545 10.239v3.821h5.445c-0.712 2.315-2.647 3.972-5.445 3.972-3.332 0-6.033-2.701-6.033-6.032s2.701-6.032 6.033-6.032c1.498 0 2.866 0.549 3.921 1.453l2.814-2.814c-1.798-1.677-4.198-2.702-6.735-2.702-5.523 0-10 4.477-10 10s4.477 10 10 10c8.396 0 10-7.261 10-10 0-0.635-0.057-1.252-0.164-1.841h-9.836z" fill="currentColor"/>
-                    </svg>
-                    Sign in with Google
-                  </>
-                )}
+                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                  <path d="M12.545 10.239v3.821h5.445c-0.712 2.315-2.647 3.972-5.445 3.972-3.332 0-6.033-2.701-6.033-6.032s2.701-6.032 6.033-6.032c1.498 0 2.866 0.549 3.921 1.453l2.814-2.814c-1.798-1.677-4.198-2.702-6.735-2.702-5.523 0-10 4.477-10 10s4.477 10 10 10c8.396 0 10-7.261 10-10 0-0.635-0.057-1.252-0.164-1.841h-9.836z" fill="currentColor"/>
+                </svg>
+                Sign in with Google
               </Button>
             </div>
           </CardContent>

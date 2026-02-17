@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithPopup, GoogleAuthProvider } from "firebase/auth";
+import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "firebase/auth";
 import { getMessaging, getToken, onMessage, isSupported } from "firebase/messaging";
 
 const firebaseConfig = {
@@ -82,13 +82,28 @@ provider.setCustomParameters({
   prompt: 'select_account'
 });
 
-// Sign in with Google using popup (more reliable than redirect)
+// Sign in with Google using redirect (avoids popup blockers and CORS issues)
 export const signInWithGoogle = async () => {
   try {
-    const result = await signInWithPopup(auth, provider);
-    return result.user;
+    await signInWithRedirect(auth, provider);
+    // Note: this function doesn't return immediately - the page will redirect
   } catch (error) {
     console.error("Error signing in with Google:", error);
+    throw error;
+  }
+};
+
+// Handle redirect result after returning from Google sign-in
+export const handleRedirectResult = async () => {
+  try {
+    const result = await getRedirectResult(auth);
+    if (result) {
+      console.log('User signed in via redirect:', result.user.email);
+      return result.user;
+    }
+    return null;
+  } catch (error) {
+    console.error("Error handling redirect result:", error);
     throw error;
   }
 };

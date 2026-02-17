@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, handleRedirectResult } from '@/lib/firebase';
 import { useToast } from '@/hooks/use-toast';
 
 interface AuthContextProps {
@@ -24,6 +24,12 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const { toast } = useToast();
 
   useEffect(() => {
+    // Handle redirect result first (if user is returning from Google sign-in)
+    handleRedirectResult().catch((error) => {
+      console.error('Error handling redirect:', error);
+      setError(error.message);
+    });
+
     // Check current auth state immediately
     const currentUser = auth.currentUser;
     if (currentUser) {
