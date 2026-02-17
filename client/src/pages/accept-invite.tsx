@@ -110,7 +110,8 @@ export default function AcceptInvitePage() {
         console.log('Email mismatch:', dbUser.email, 'vs', inviteData.invitation.email);
       }
     }
-  }, [inviteData, dbUser, accepted, acceptMutation]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [inviteData, dbUser, accepted]);
 
   if (!token) {
     return (
