@@ -148,6 +148,7 @@ export default function AcceptInvitePage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [inviteData, dbUser, accepted]);
 
+  // Check for token first
   if (!token) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
@@ -157,6 +158,28 @@ export default function AcceptInvitePage() {
             <CardTitle className="text-center">Invalid Invitation</CardTitle>
             <CardDescription className="text-center">
               No invitation token was provided in the URL.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button onClick={() => setLocation('/')} className="w-full">
+              Go to Home
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show invitation error (before loading checks so errors are shown immediately)
+  if (error && !isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <Card className="max-w-md">
+          <CardHeader>
+            <XCircle className="h-12 w-12 mx-auto mb-2 text-red-500" />
+            <CardTitle className="text-center">Invalid Invitation</CardTitle>
+            <CardDescription className="text-center">
+              {(error as Error).message}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -179,27 +202,6 @@ export default function AcceptInvitePage() {
             <p className="text-center text-gray-600">
               {authLoading ? 'Checking authentication...' : 'Loading invitation...'}
             </p>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  if (error) {
-    return (
-      <div className="flex items-center justify-center min-h-screen bg-gray-50">
-        <Card className="max-w-md">
-          <CardHeader>
-            <XCircle className="h-12 w-12 mx-auto mb-2 text-red-500" />
-            <CardTitle className="text-center">Invalid Invitation</CardTitle>
-            <CardDescription className="text-center">
-              {(error as Error).message}
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button onClick={() => setLocation('/')} className="w-full">
-              Go to Home
-            </Button>
           </CardContent>
         </Card>
       </div>
