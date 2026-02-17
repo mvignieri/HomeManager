@@ -7,6 +7,7 @@ import { useAuth } from '@/context/auth-context';
 import { useAppContext } from '@/context/app-context';
 import { Loader2, CheckCircle, XCircle, Home as HomeIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { signInWithGoogle } from '@/lib/firebase';
 
 export default function AcceptInvitePage() {
   const [, setLocation] = useLocation();
@@ -17,6 +18,24 @@ export default function AcceptInvitePage() {
   const { setCurrentHouse } = useAppContext();
   const { toast } = useToast();
   const [accepted, setAccepted] = useState(false);
+  const [loggingIn, setLoggingIn] = useState(false);
+
+  // Handle Google Sign-In
+  const handleLogin = async () => {
+    setLoggingIn(true);
+    try {
+      await signInWithGoogle();
+      // After login, the auth state will change and trigger the auto-accept
+    } catch (error: any) {
+      console.error("Login error:", error);
+      toast({
+        title: "Login Error",
+        description: error.message || "Failed to sign in with Google",
+        variant: "destructive"
+      });
+      setLoggingIn(false);
+    }
+  };
 
   // Get current database user
   const { data: dbUser } = useQuery({
@@ -98,6 +117,13 @@ export default function AcceptInvitePage() {
       });
     },
   });
+
+  // Reset loggingIn state when user logs in successfully
+  useEffect(() => {
+    if (firebaseUser && loggingIn) {
+      setLoggingIn(false);
+    }
+  }, [firebaseUser, loggingIn]);
 
   // Auto-accept if user is logged in and invitation is valid
   useEffect(() => {
@@ -195,6 +221,20 @@ export default function AcceptInvitePage() {
 
   // Show invitation details and prompt to login/register if not logged in
   if (!firebaseUser || !dbUser) {
+    // Show loading state while logging in
+    if (loggingIn) {
+      return (
+        <div className="flex items-center justify-center min-h-screen bg-gray-50">
+          <Card className="max-w-md">
+            <CardContent className="pt-6">
+              <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
+              <p className="text-center text-gray-600">Signing in...</p>
+            </CardContent>
+          </Card>
+        </div>
+      );
+    }
+
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50 p-4">
         <Card className="max-w-md w-full">
@@ -220,8 +260,24 @@ export default function AcceptInvitePage() {
                 <span className="font-semibold">{inviteData?.invitation.email}</span> to accept
                 this invitation.
               </p>
-              <Button onClick={() => setLocation('/')} className="w-full">
-                Sign In / Register
+              <Button
+                onClick={handleLogin}
+                disabled={loggingIn}
+                className="w-full flex items-center justify-center"
+              >
+                {loggingIn ? (
+                  <>
+                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                      <path d="M12.545 10.239v3.821h5.445c-0.712 2.315-2.647 3.972-5.445 3.972-3.332 0-6.033-2.701-6.033-6.032s2.701-6.032 6.033-6.032c1.498 0 2.866 0.549 3.921 1.453l2.814-2.814c-1.798-1.677-4.198-2.702-6.735-2.702-5.523 0-10 4.477-10 10s4.477 10 10 10c8.396 0 10-7.261 10-10 0-0.635-0.057-1.252-0.164-1.841h-9.836z" fill="currentColor"/>
+                    </svg>
+                    Sign in with Google
+                  </>
+                )}
               </Button>
             </div>
           </CardContent>
@@ -247,20 +303,9 @@ export default function AcceptInvitePage() {
             <p className="text-sm text-gray-600 text-center">
               Please sign out and sign in with the correct email address to accept this invitation.
             </p>
-            <div className="space-y-2">
-              <Button onClick={() => setLocation('/')} variant="outline" className="w-full">
-                Go to Home
-              </Button>
-              <Button
-                onClick={() => {
-                  // Sign out logic would go here
-                  setLocation('/');
-                }}
-                className="w-full"
-              >
-                Sign Out & Sign In Again
-              </Button>
-            </div>
+            <Button onClick={() => setLocation('/')} className="w-full">
+              Go to Home
+            </Button>
           </CardContent>
         </Card>
       </div>
