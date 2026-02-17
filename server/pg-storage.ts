@@ -63,7 +63,7 @@ export class PostgresStorage implements IStorage {
       .from(houseMembers)
       .where(eq(houseMembers.userId, userId));
 
-    const houseIds = memberships.map((m) => m.houseId);
+    const houseIds = memberships.map((m: HouseMember) => m.houseId);
     if (houseIds.length === 0) return [];
 
     return db

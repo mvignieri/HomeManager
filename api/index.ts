@@ -344,7 +344,7 @@ app.post('/api/houses/:id/invitations', async (req, res) => {
         if (invitedUser.fcmToken) {
           try {
             await sendNotificationToUser(
-              invitedUser.id,
+              invitedUser.fcmToken,
               'New House Invitation',
               `${inviter.displayName || inviter.email} has invited you to join ${house.name}`,
               {
