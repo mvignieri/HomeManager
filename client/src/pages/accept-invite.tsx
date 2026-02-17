@@ -82,13 +82,13 @@ export default function AcceptInvitePage() {
         description: `You've successfully joined ${data.house.name}`,
       });
       // Invalidate queries to refresh houses and invitations
-      await queryClient.invalidateQueries({ queryKey: ['/api/houses'] });
-      await queryClient.invalidateQueries({ queryKey: ['/api/invitations/pending'] });
-      await queryClient.invalidateQueries({ queryKey: ['/api/invitations/by-email'] });
-      // Wait a bit to ensure queries are refreshed, then force full page reload
+      // Use firebaseUser.uid to match the query key in app-context
+      await queryClient.invalidateQueries({ queryKey: ['/api/houses', firebaseUser?.uid] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/invitations/pending', dbUser?.email] });
+      // Wait for queries to refetch before redirecting
       setTimeout(() => {
-        window.location.href = '/';
-      }, 1000);
+        setLocation('/');
+      }, 500);
     },
     onError: (error: Error) => {
       toast({
@@ -104,10 +104,13 @@ export default function AcceptInvitePage() {
     if (inviteData && dbUser && !accepted && !acceptMutation.isPending) {
       // Check if user's email matches invitation email
       if (dbUser.email === inviteData.invitation.email) {
+        console.log('Auto-accepting invitation for', dbUser.email);
         acceptMutation.mutate();
+      } else {
+        console.log('Email mismatch:', dbUser.email, 'vs', inviteData.invitation.email);
       }
     }
-  }, [inviteData, dbUser, accepted]);
+  }, [inviteData, dbUser, accepted, acceptMutation]);
 
   if (!token) {
     return (

@@ -156,6 +156,15 @@ function App() {
     );
   }
 
+  // Check for pending invitation token and redirect if present
+  React.useEffect(() => {
+    const pendingToken = localStorage.getItem('pendingInviteToken');
+    if (pendingToken && user && dbUser && !location.startsWith('/accept-invite')) {
+      console.log('Found pending token in gate screen, redirecting to accept page');
+      setLocation(`/accept-invite?token=${pendingToken}`);
+    }
+  }, [user, dbUser, location, setLocation]);
+
   // Block navigation if user has no house (except accept-invite page)
   const shouldShowGate = user && dbUser && houses.length === 0 && !location.startsWith('/accept-invite');
 
@@ -165,7 +174,8 @@ function App() {
     hasDbUser: !!dbUser,
     housesLength: houses.length,
     housesIsArray: Array.isArray(houses),
-    location
+    location,
+    pendingToken: localStorage.getItem('pendingInviteToken')
   });
 
   if (shouldShowGate) {
