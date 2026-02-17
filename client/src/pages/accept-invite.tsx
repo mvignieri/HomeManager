@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { useQuery, useMutation } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '@/context/auth-context';
 import { useAppContext } from '@/context/app-context';
 import { Loader2, CheckCircle, XCircle, Home as HomeIcon } from 'lucide-react';
@@ -10,6 +10,7 @@ import { useToast } from '@/hooks/use-toast';
 
 export default function AcceptInvitePage() {
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
   // Get token from URL query params
   const token = new URLSearchParams(window.location.search).get('token');
   const { user: firebaseUser } = useAuth();
@@ -71,7 +72,7 @@ export default function AcceptInvitePage() {
       }
       return res.json();
     },
-    onSuccess: (data) => {
+    onSuccess: async (data) => {
       setAccepted(true);
       setCurrentHouse(data.house);
       // Clear the pending token
@@ -80,10 +81,14 @@ export default function AcceptInvitePage() {
         title: 'Success!',
         description: `You've successfully joined ${data.house.name}`,
       });
-      // Redirect to home after 2 seconds
+      // Invalidate queries to refresh houses and invitations
+      await queryClient.invalidateQueries({ queryKey: ['/api/houses'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/invitations/pending'] });
+      await queryClient.invalidateQueries({ queryKey: ['/api/invitations/by-email'] });
+      // Wait a bit to ensure queries are refreshed, then force full page reload
       setTimeout(() => {
-        setLocation('/');
-      }, 2000);
+        window.location.href = '/';
+      }, 1000);
     },
     onError: (error: Error) => {
       toast({

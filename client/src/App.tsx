@@ -24,7 +24,7 @@ import React from "react";
 function App() {
   const { user, loading, houses, refreshHouses, showCreateHouseModal, setShowCreateHouseModal } = useAppContext();
   const { toast } = useToast();
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
 
   // Initialize Firebase Cloud Messaging
   useFCM();
@@ -59,6 +59,7 @@ function App() {
       return res.json();
     },
     enabled: !!dbUser?.email,
+    refetchOnMount: 'always',
   });
 
   // Debug logging for house creation
@@ -216,8 +217,8 @@ function App() {
                             <Button
                               size="sm"
                               onClick={() => {
-                                // Redirect to accept-invite page with token
-                                window.location.href = `/accept-invite?token=${inv.token}`;
+                                // Navigate to accept-invite page with token
+                                setLocation(`/accept-invite?token=${inv.token}`);
                               }}
                               className="text-xs"
                             >
