@@ -67,6 +67,10 @@ export default function AcceptInvitePage() {
       if (!token) throw new Error('No invitation token provided');
       const res = await fetch(`/api/invitations/${token}`);
       if (!res.ok) {
+        // If invitation is not found, clear the localStorage token
+        if (res.status === 404) {
+          localStorage.removeItem('pendingInviteToken');
+        }
         const errorData = await res.json();
         throw new Error(errorData.message || 'Failed to fetch invitation');
       }
@@ -166,8 +170,30 @@ export default function AcceptInvitePage() {
     );
   }
 
-  // Show invitation error (before loading checks so errors are shown immediately)
-  if (error && !isLoading) {
+  // Show loading spinner while invitation is loading (before we know if it's valid)
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-50">
+        <Card className="max-w-md">
+          <CardContent className="pt-6">
+            <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
+            <p className="text-center text-gray-600">Loading invitation...</p>
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
+  // Show invitation error and redirect after 3 seconds (show BEFORE authLoading)
+  if (error) {
+    // Auto-redirect to home after 3 seconds
+    React.useEffect(() => {
+      const timeout = setTimeout(() => {
+        setLocation('/');
+      }, 3000);
+      return () => clearTimeout(timeout);
+    }, []);
+
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <Card className="max-w-md">
@@ -178,9 +204,12 @@ export default function AcceptInvitePage() {
               {(error as Error).message}
             </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="space-y-4">
+            <p className="text-sm text-gray-500 text-center">
+              Redirecting to home in 3 seconds...
+            </p>
             <Button onClick={() => setLocation('/')} className="w-full">
-              Go to Home
+              Go to Home Now
             </Button>
           </CardContent>
         </Card>
@@ -188,16 +217,14 @@ export default function AcceptInvitePage() {
     );
   }
 
-  // Show loading spinner while auth or invitation is loading
-  if (authLoading || isLoading) {
+  // Show loading spinner while checking authentication
+  if (authLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <Card className="max-w-md">
           <CardContent className="pt-6">
             <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
-            <p className="text-center text-gray-600">
-              {authLoading ? 'Checking authentication...' : 'Loading invitation...'}
-            </p>
+            <p className="text-center text-gray-600">Checking authentication...</p>
           </CardContent>
         </Card>
       </div>
