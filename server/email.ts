@@ -38,9 +38,8 @@ export async function sendInvitationEmail(data: InvitationEmailData): Promise<vo
   // Remove this override once you have a verified domain
   const actualEmail = useResend ? 'swirltexdeveloper@gmail.com' : email;
 
-  console.log(`📧 Original recipient: ${email}`);
   if (useResend && actualEmail !== email) {
-    console.log(`   ⚠️  OVERRIDE: Sending to ${actualEmail} for Resend testing`);
+    console.log(`📧 Invitation email: ${email} → ${actualEmail} (Resend test mode)`);
   }
 
   const htmlContent = `
@@ -190,11 +189,6 @@ If you didn't expect this invitation, you can safely ignore this email.
   const fromEmail = process.env.EMAIL_FROM || 'HomeManager <onboarding@resend.dev>';
   const subject = `You've been invited to join ${houseName} on HomeManager`;
 
-  console.log(`📧 Attempting to send email to ${actualEmail}`);
-  console.log(`   Environment: ${useResend ? 'Production (Resend SMTP)' : 'Development (Mailhog)'}`);
-  console.log(`   From: ${fromEmail}`);
-  console.log(`   Subject: ${subject}`);
-
   try {
     const result = await transporter.sendMail({
       from: fromEmail,
@@ -204,15 +198,9 @@ If you didn't expect this invitation, you can safely ignore this email.
       html: htmlContent,
     });
 
-    console.log(`✓ Invitation email sent to ${actualEmail} via ${useResend ? 'Resend SMTP' : 'Mailhog'}`);
-    console.log(`   Message ID:`, result.messageId);
+    console.log(`✓ Invitation email sent to ${actualEmail}`);
   } catch (error) {
-    console.error('✗ Error sending invitation email:', error);
-    // Log more details about the error
-    if (error instanceof Error) {
-      console.error('   Error message:', error.message);
-      console.error('   Error stack:', error.stack);
-    }
+    console.error('✗ Error sending invitation email:', error instanceof Error ? error.message : 'Unknown error');
     throw new Error(`Failed to send invitation email: ${error instanceof Error ? error.message : 'Unknown error'}`);
   }
 }

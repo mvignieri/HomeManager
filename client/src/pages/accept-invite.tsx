@@ -127,7 +127,6 @@ export default function AcceptInvitePage() {
     // Safety timeout: reset loggingIn after 10 seconds if still true
     if (loggingIn) {
       const timeout = setTimeout(() => {
-        console.warn('Login timeout - resetting loggingIn state');
         setLoggingIn(false);
       }, 10000);
       return () => clearTimeout(timeout);
@@ -139,10 +138,7 @@ export default function AcceptInvitePage() {
     if (inviteData && dbUser && !accepted && !acceptMutation.isPending) {
       // Check if user's email matches invitation email
       if (dbUser.email === inviteData.invitation.email) {
-        console.log('Auto-accepting invitation for', dbUser.email);
         acceptMutation.mutate();
-      } else {
-        console.log('Email mismatch:', dbUser.email, 'vs', inviteData.invitation.email);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

@@ -24,14 +24,19 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const { toast } = useToast();
 
   useEffect(() => {
-    // Safety timeout: if auth doesn't respond in 3 seconds, stop loading
-    const timeout = setTimeout(() => {
-      console.warn('Auth timeout - setting loading to false');
+    // Check current auth state immediately
+    const currentUser = auth.currentUser;
+    if (currentUser) {
+      setUser(currentUser);
       setLoading(false);
-    }, 3000);
+    }
+
+    // Safety timeout: if auth doesn't respond in 2 seconds, stop loading
+    const timeout = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
 
     const unsubscribe = auth.onAuthStateChanged((authUser) => {
-      console.log('Auth state changed:', authUser ? 'logged in' : 'logged out');
       clearTimeout(timeout); // Clear timeout if auth responds
       setUser(authUser);
       setLoading(false); // Set loading to false AFTER auth state is determined

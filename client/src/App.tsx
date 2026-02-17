@@ -62,17 +62,6 @@ function App() {
     refetchOnMount: 'always',
   });
 
-  // Debug logging for house creation
-  React.useEffect(() => {
-    console.log('=== APP STATE DEBUG ===');
-    console.log('Firebase User:', user?.email);
-    console.log('DB User:', dbUser);
-    console.log('Houses:', houses);
-    console.log('Loading:', loading);
-    console.log('Location:', location);
-    console.log('Should show gate?', user && dbUser && houses.length === 0 && !location.startsWith('/accept-invite'));
-    console.log('=====================');
-  }, [user, dbUser, houses, pendingInvitations, loading, location]);
 
   // Handle login with Google
   const login = async () => {
@@ -158,15 +147,6 @@ function App() {
 
   // Block navigation if user has no house (except accept-invite page)
   const shouldShowGate = user && dbUser && houses.length === 0 && !location.startsWith('/accept-invite');
-
-  console.log('GATE CHECK:', {
-    shouldShowGate,
-    hasUser: !!user,
-    hasDbUser: !!dbUser,
-    housesLength: houses.length,
-    housesIsArray: Array.isArray(houses),
-    location
-  });
 
   if (shouldShowGate) {
     return (

@@ -2,7 +2,7 @@ import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes.js";
 import { setupVite, serveStatic, log } from "./vite.js";
-import { testEmailConnection } from "./email.js";
+import { runStartupChecks } from "./startup-checks.js";
 import { initializeFirebaseAdmin } from "./firebase-admin.js";
 
 const app = express();
@@ -40,20 +40,11 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Initialize Firebase Admin SDK
-  const firebaseAdmin = initializeFirebaseAdmin();
-  if (!firebaseAdmin) {
-    log("⚠ Firebase Admin not initialized - push notifications will not work");
-    log("  Set FIREBASE_SERVICE_ACCOUNT_KEY in .env to enable push notifications");
-  }
+  // Initialize Firebase Admin SDK first
+  initializeFirebaseAdmin();
 
-  // Test email connection
-  const emailConnected = await testEmailConnection();
-  if (emailConnected) {
-    log("✓ Email service connected (Mailhog on port 1025)");
-  } else {
-    log("⚠ Email service not connected - invitations will be created but emails won't be sent");
-  }
+  // Run comprehensive startup checks
+  await runStartupChecks();
 
   const server = await registerRoutes(app);
 

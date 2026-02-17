@@ -64,7 +64,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     // Set a timeout to exit loading state in case Firebase auth doesn't respond
     const timeoutId = setTimeout(() => {
       if (loading) {
-        console.log('Firebase auth timeout reached, showing login screen');
         setLoading(false);
       }
     }, 2000);
@@ -72,8 +71,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
       // Clear the timeout since we received a response
       clearTimeout(timeoutId);
-
-      console.log('Auth state changed:', authUser ? authUser.email : 'no user');
 
       if (authUser) {
         // User is signed in
@@ -98,14 +95,11 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             throw new Error('Failed to verify user');
           }
 
-          console.log('User verified/created in database');
-
           // Check for pending invitation token
           // Only redirect if not already on the accept-invite page
           const pendingToken = localStorage.getItem('pendingInviteToken');
           const currentLocation = window.location.pathname;
           if (pendingToken && !currentLocation.startsWith('/accept-invite')) {
-            console.log('Found pending invitation token, redirecting to accept page');
             // Redirect to accept-invite page with the token
             setTimeout(() => {
               setLocation(`/accept-invite?token=${pendingToken}`);
