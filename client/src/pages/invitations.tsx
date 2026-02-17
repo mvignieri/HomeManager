@@ -154,7 +154,7 @@ export default function InvitationsPage() {
       <div className="flex flex-col h-screen bg-gray-50">
         <Navbar title="My Invitations" />
         <Sidebar />
-        <div className="flex-1 flex items-center justify-center md:ml-64">
+        <div className="flex-1 flex items-center justify-center md:ml-20 lg:ml-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
         </div>
       </div>
@@ -166,7 +166,7 @@ export default function InvitationsPage() {
       <Navbar title="My Invitations" />
       <Sidebar />
 
-      <main className="flex-1 overflow-y-auto p-4 space-y-4 pb-24 md:pb-4 md:ml-64">
+      <main className="flex-1 overflow-y-auto px-3 py-4 space-y-4 pb-24 sm:px-4 md:ml-20 md:px-5 md:pb-4 lg:ml-64 lg:px-6">
         {/* Pending Invitations */}
         {pendingInvitations.length > 0 ? (
           <Card>

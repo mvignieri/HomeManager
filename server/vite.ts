@@ -1,10 +1,26 @@
 import express, { type Express } from "express";
 import fs from "fs";
 import path from "path";
+import * as nodeCrypto from "node:crypto";
+import { fileURLToPath } from "url";
 import { createServer as createViteServer, createLogger } from "vite";
 import { type Server } from "http";
 import viteConfig from "../vite.config.js";
 import { nanoid } from "nanoid";
+
+const moduleDir = path.dirname(fileURLToPath(import.meta.url));
+
+// Compatibility shim for older Node runtimes (ex. Node 16).
+const webcrypto = (nodeCrypto as any).webcrypto;
+if (webcrypto && typeof globalThis.crypto === "undefined") {
+  Object.defineProperty(globalThis, "crypto", {
+    value: webcrypto,
+    configurable: true,
+  });
+}
+if (webcrypto && typeof (globalThis.crypto as any)?.getRandomValues !== "function") {
+  (globalThis.crypto as any).getRandomValues = webcrypto.getRandomValues.bind(webcrypto);
+}
 
 const viteLogger = createLogger();
 
@@ -46,7 +62,7 @@ export async function setupVite(app: Express, server: Server) {
 
     try {
       const clientTemplate = path.resolve(
-        import.meta.dirname,
+        moduleDir,
         "..",
         "client",
         "index.html",
@@ -68,7 +84,7 @@ export async function setupVite(app: Express, server: Server) {
 }
 
 export function serveStatic(app: Express) {
-  const distPath = path.resolve(import.meta.dirname, "public");
+  const distPath = path.resolve(moduleDir, "public");
 
   if (!fs.existsSync(distPath)) {
     throw new Error(

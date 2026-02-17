@@ -5,6 +5,7 @@ import CalendarPage from "@/pages/calendar";
 import SmartHomePage from "@/pages/smart-home";
 import AnalyticsPage from "@/pages/analytics";
 import TasksPage from "@/pages/tasks";
+import ShoppingListPage from "@/pages/shopping-list";
 import SettingsPage from "@/pages/settings";
 import ProfilePage from "@/pages/profile";
 import AcceptInvitePage from "@/pages/accept-invite";
@@ -344,6 +345,7 @@ function App() {
         <Route path="/smart-home" component={SmartHomePage} />
         <Route path="/analytics" component={AnalyticsPage} />
         <Route path="/tasks" component={TasksPage} />
+        <Route path="/shopping-list" component={ShoppingListPage} />
         <Route path="/settings" component={SettingsPage} />
         <Route path="/profile" component={ProfilePage} />
         <Route path="/accept-invite" component={AcceptInvitePage} />

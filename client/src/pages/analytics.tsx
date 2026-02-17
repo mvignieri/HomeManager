@@ -18,6 +18,7 @@ import {
   ArrowUpRight, ArrowDownRight, Minus,
   Filter, CheckSquare as CheckCircle2
 } from 'lucide-react';
+import Navbar from '@/components/layout/navbar';
 import Sidebar from '@/components/layout/sidebar';
 import BottomNav from '@/components/layout/bottom-nav';
 
@@ -69,15 +70,16 @@ export default function AnalyticsPage() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
+      <Navbar title="Analytics" />
       <Sidebar />
-      <header className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm md:ml-64">
-        <div className="flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-900">Analytics</h1>
+      <header className="bg-white border-b border-gray-200 px-3 py-3 shadow-sm sm:px-4 md:ml-20 md:px-5 lg:ml-64 lg:px-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-medium text-gray-600">Filtra i dati della casa</p>
           <Select 
             value={selectedHouse}
             onValueChange={setSelectedHouse}
           >
-            <SelectTrigger className="w-[180px]">
+            <SelectTrigger className="w-full sm:w-[180px] md:w-[160px] lg:w-[180px]">
               <SelectValue placeholder="Select house" />
             </SelectTrigger>
             <SelectContent>
@@ -92,9 +94,9 @@ export default function AnalyticsPage() {
         </div>
       </header>
 
-      <main className="flex-grow overflow-y-auto pb-24 md:pb-6 px-4 py-6 space-y-6 md:ml-64">
+      <main className="flex-grow overflow-y-auto px-3 py-5 pb-24 space-y-5 sm:px-4 md:ml-20 md:px-5 md:py-6 md:pb-6 md:space-y-6 lg:ml-64 lg:px-6">
         {/* Top Stats Cards */}
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Card className="shadow-sm">
             <CardContent className="p-4">
               <div className="flex flex-col items-center justify-center h-32">
@@ -149,12 +151,12 @@ export default function AnalyticsPage() {
         {/* Task by Priority Chart */}
         <Card className="shadow-sm">
           <CardHeader className="pb-2">
-            <div className="flex justify-between">
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
               <div>
                 <CardTitle className="text-lg font-semibold">Task Distribution</CardTitle>
                 <CardDescription>Analysis by priority and status</CardDescription>
               </div>
-              <Tabs defaultValue="priority" className="w-[250px]">
+              <Tabs defaultValue="priority" className="w-full md:w-[220px] lg:w-[250px]">
                 <TabsList className="grid w-full grid-cols-2">
                   <TabsTrigger value="priority">By Priority</TabsTrigger>
                   <TabsTrigger value="status">By Status</TabsTrigger>

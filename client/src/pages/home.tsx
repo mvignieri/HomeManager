@@ -138,7 +138,7 @@ export default function HomePage() {
       <Navbar title="Dashboard" />
       <Sidebar />
 
-      <main className="flex-grow overflow-y-auto px-4 py-6 space-y-6 pb-20 md:ml-64 md:pb-6">
+      <main className="flex-grow overflow-y-auto px-3 py-5 space-y-6 pb-20 sm:px-4 md:ml-20 md:px-5 md:py-6 md:pb-6 lg:ml-64 lg:px-6">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-gray-500">
@@ -151,7 +151,7 @@ export default function HomePage() {
           </Button>
         </div>
         
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <div className="grid grid-cols-1 gap-5 lg:grid-cols-2 lg:gap-6">
           {/* Tasks Overview */}
           <Card className="shadow-sm">
             <CardHeader className="pb-2">

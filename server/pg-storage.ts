@@ -5,6 +5,7 @@ import {
   houses, type House, type InsertHouse,
   houseMembers, type HouseMember, type InsertHouseMember,
   tasks, type Task, type InsertTask,
+  shoppingListItems, type ShoppingListItem, type InsertShoppingListItem,
   devices, type Device, type InsertDevice,
   notifications, type Notification, type InsertNotification,
   houseInvitations, type HouseInvitation, type InsertHouseInvitation,
@@ -151,6 +152,46 @@ export class PostgresStorage implements IStorage {
     await db.delete(tasks).where(eq(tasks.id, id));
   }
 
+  // Shopping list methods
+  async getShoppingListItem(id: number): Promise<ShoppingListItem | undefined> {
+    const result = await db.select().from(shoppingListItems).where(eq(shoppingListItems.id, id));
+    return result[0];
+  }
+
+  async getShoppingListItemsByHouse(houseId: number): Promise<ShoppingListItem[]> {
+    return db
+      .select()
+      .from(shoppingListItems)
+      .where(eq(shoppingListItems.houseId, houseId))
+      .orderBy(shoppingListItems.isPurchased, shoppingListItems.createdAt);
+  }
+
+  async createShoppingListItem(insertItem: InsertShoppingListItem): Promise<ShoppingListItem> {
+    const result = await db.insert(shoppingListItems).values(insertItem).returning();
+    return result[0];
+  }
+
+  async updateShoppingListItem(id: number, updates: Partial<ShoppingListItem>): Promise<ShoppingListItem> {
+    const result = await db
+      .update(shoppingListItems)
+      .set({
+        ...updates,
+        updatedAt: new Date(),
+      })
+      .where(eq(shoppingListItems.id, id))
+      .returning();
+
+    if (!result[0]) {
+      throw new Error(`Shopping list item with id ${id} not found`);
+    }
+
+    return result[0];
+  }
+
+  async deleteShoppingListItem(id: number): Promise<void> {
+    await db.delete(shoppingListItems).where(eq(shoppingListItems.id, id));
+  }
+
   // Device methods
   async getDevice(id: number): Promise<Device | undefined> {
     const result = await db.select().from(devices).where(eq(devices.id, id));
@@ -284,6 +325,9 @@ export class PostgresStorage implements IStorage {
 
     // Delete tasks
     await db.delete(tasks).where(eq(tasks.houseId, id));
+
+    // Delete shopping list items
+    await db.delete(shoppingListItems).where(eq(shoppingListItems.houseId, id));
 
     // Delete devices
     await db.delete(devices).where(eq(devices.houseId, id));

@@ -59,6 +59,23 @@ CREATE TABLE IF NOT EXISTS tasks (
   created_at TIMESTAMP DEFAULT NOW() NOT NULL
 );
 
+-- Shopping list items table
+CREATE TABLE IF NOT EXISTS shopping_list_items (
+  id SERIAL PRIMARY KEY,
+  house_id INTEGER NOT NULL REFERENCES houses(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  quantity INTEGER NOT NULL DEFAULT 1,
+  unit TEXT NOT NULL DEFAULT 'pcs',
+  category TEXT NOT NULL DEFAULT 'other',
+  note TEXT,
+  is_purchased BOOLEAN NOT NULL DEFAULT false,
+  added_by_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  purchased_by_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+  purchased_at TIMESTAMP,
+  created_at TIMESTAMP DEFAULT NOW() NOT NULL,
+  updated_at TIMESTAMP DEFAULT NOW() NOT NULL
+);
+
 -- Devices table
 CREATE TABLE IF NOT EXISTS devices (
   id SERIAL PRIMARY KEY,
@@ -111,6 +128,11 @@ CREATE INDEX IF NOT EXISTS idx_tasks_created_by_id ON tasks(created_by_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_assigned_to_id ON tasks(assigned_to_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status);
 CREATE INDEX IF NOT EXISTS idx_tasks_due_date ON tasks(due_date);
+
+CREATE INDEX IF NOT EXISTS idx_shopping_list_items_house_id ON shopping_list_items(house_id);
+CREATE INDEX IF NOT EXISTS idx_shopping_list_items_purchased ON shopping_list_items(is_purchased);
+CREATE INDEX IF NOT EXISTS idx_shopping_list_items_category ON shopping_list_items(category);
+CREATE INDEX IF NOT EXISTS idx_shopping_list_items_added_by ON shopping_list_items(added_by_id);
 
 CREATE INDEX IF NOT EXISTS idx_devices_house_id ON devices(house_id);
 CREATE INDEX IF NOT EXISTS idx_devices_type ON devices(type);

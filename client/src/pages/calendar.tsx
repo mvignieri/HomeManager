@@ -10,6 +10,7 @@ import {
   Plus, CheckCircle, ArrowLeft, ArrowRight,
   Clock, AlertCircle, CheckSquare as CheckCircle2
 } from 'lucide-react';
+import Navbar from '@/components/layout/navbar';
 import Sidebar from '@/components/layout/sidebar';
 import BottomNav from '@/components/layout/bottom-nav';
 
@@ -121,9 +122,10 @@ export default function CalendarPage() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
+      <Navbar title="Calendar" />
       <Sidebar />
-      <header className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm md:ml-64">
-        <div className="flex justify-between items-center">
+      <header className="bg-white border-b border-gray-200 px-3 py-3 shadow-sm sm:px-4 md:ml-20 md:px-5 lg:ml-64 lg:px-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex items-center">
             {currentView === 'day' && (
               <Button 
@@ -135,18 +137,18 @@ export default function CalendarPage() {
                 <ArrowLeft className="h-4 w-4" />
               </Button>
             )}
-            <h1 className="text-xl font-bold text-gray-900">
-              {currentView === 'calendar' ? 'Calendar' : format(selectedDate!, 'MMMM d, yyyy')}
-            </h1>
+            <p className="text-sm font-medium text-gray-600">
+              {currentView === 'calendar' ? 'Vista mensile' : format(selectedDate!, 'MMMM d, yyyy')}
+            </p>
           </div>
-          <Button size="sm" variant="outline" className="flex items-center gap-1">
+          <Button size="sm" variant="outline" className="flex items-center gap-1 self-start sm:self-auto">
             <Plus className="h-4 w-4" />
             Add Task
           </Button>
         </div>
       </header>
 
-      <main className="flex-grow overflow-y-auto pb-24 md:pb-6 px-4 py-6 md:ml-64">
+      <main className="flex-grow overflow-y-auto px-3 py-5 pb-24 sm:px-4 md:ml-20 md:px-5 md:py-6 md:pb-6 lg:ml-64 lg:px-6">
         {currentView === 'calendar' ? (
           <div className="space-y-6">
             <CalendarComponent

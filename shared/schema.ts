@@ -82,6 +82,33 @@ export const insertTaskSchema = createInsertSchema(tasks, {
 export type InsertTask = z.infer<typeof insertTaskSchema>;
 export type Task = typeof tasks.$inferSelect;
 
+// Shopping list item model
+export const shoppingListItems = pgTable("shopping_list_items", {
+  id: serial("id").primaryKey(),
+  houseId: integer("house_id").notNull().references(() => houses.id),
+  name: text("name").notNull(),
+  quantity: integer("quantity").notNull().default(1),
+  unit: text("unit").notNull().default("pcs"),
+  category: text("category").notNull().default("other"),
+  note: text("note"),
+  isPurchased: boolean("is_purchased").notNull().default(false),
+  addedById: integer("added_by_id").notNull().references(() => users.id),
+  purchasedById: integer("purchased_by_id").references(() => users.id),
+  purchasedAt: timestamp("purchased_at"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertShoppingListItemSchema = createInsertSchema(shoppingListItems).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  purchasedById: true,
+  purchasedAt: true,
+});
+export type InsertShoppingListItem = z.infer<typeof insertShoppingListItemSchema>;
+export type ShoppingListItem = typeof shoppingListItems.$inferSelect;
+
 // Smart home device model
 export const devices = pgTable("devices", {
   id: serial("id").primaryKey(),
@@ -129,6 +156,20 @@ export type DeviceStatus = z.infer<typeof DeviceStatus>;
 
 export const HouseRole = z.enum(["owner", "admin", "member"]);
 export type HouseRole = z.infer<typeof HouseRole>;
+
+export const ShoppingCategory = z.enum([
+  "produce",
+  "dairy",
+  "meat",
+  "bakery",
+  "pantry",
+  "frozen",
+  "beverages",
+  "cleaning",
+  "home",
+  "other",
+]);
+export type ShoppingCategory = z.infer<typeof ShoppingCategory>;
 
 // House invitations model
 export const houseInvitations = pgTable("house_invitations", {

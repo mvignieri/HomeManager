@@ -12,6 +12,7 @@ import {
   Plus, Minus, AreaChart, AlertCircle,
   CheckSquare as CheckCircle2
 } from 'lucide-react';
+import Navbar from '@/components/layout/navbar';
 import Sidebar from '@/components/layout/sidebar';
 import BottomNav from '@/components/layout/bottom-nav';
 
@@ -92,18 +93,19 @@ export default function SmartHomePage() {
 
   return (
     <div className="flex flex-col h-screen bg-gray-50">
+      <Navbar title="Smart Home" />
       <Sidebar />
-      <header className="bg-white border-b border-gray-200 px-4 py-3 shadow-sm md:ml-64">
-        <div className="flex justify-between items-center">
-          <h1 className="text-xl font-bold text-gray-900">Smart Home</h1>
-          <Button size="sm" variant="outline" className="flex items-center gap-1">
+      <header className="bg-white border-b border-gray-200 px-3 py-3 shadow-sm sm:px-4 md:ml-20 md:px-5 lg:ml-64 lg:px-6">
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-medium text-gray-600">Gestisci dispositivi e automazioni</p>
+          <Button size="sm" variant="outline" className="flex items-center gap-1 self-start sm:self-auto">
             <Plus className="h-4 w-4" />
             Add Device
           </Button>
         </div>
       </header>
 
-      <main className="flex-grow overflow-y-auto pb-24 md:pb-6 px-4 py-6 space-y-6 md:ml-64">
+      <main className="flex-grow overflow-y-auto px-3 py-5 pb-24 space-y-5 sm:px-4 md:ml-20 md:px-5 md:py-6 md:pb-6 md:space-y-6 lg:ml-64 lg:px-6">
         {/* Thermostat Card */}
         <Card className="shadow-sm">
           <CardHeader className="pb-2">
@@ -225,7 +227,7 @@ export default function SmartHomePage() {
             </Tabs>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
               {getFilteredDevices().map(device => (
                 <div key={device.id} className="bg-gray-50 p-4 rounded-lg">
                   <div className="flex items-center justify-between">
@@ -245,7 +247,7 @@ export default function SmartHomePage() {
               ))}
               
               {getFilteredDevices().length === 0 && (
-                <div className="col-span-2 bg-gray-50 p-8 rounded-lg text-center">
+                <div className="bg-gray-50 p-8 rounded-lg text-center sm:col-span-2 lg:col-span-3">
                   <AlertCircle className="h-10 w-10 text-gray-400 mx-auto mb-2" />
                   <h3 className="text-lg font-medium text-gray-600">No devices found</h3>
                   <p className="text-gray-500 mt-1">Add devices to get started</p>

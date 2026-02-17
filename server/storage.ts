@@ -3,6 +3,7 @@ import {
   houses, type House, type InsertHouse,
   houseMembers, type HouseMember, type InsertHouseMember,
   tasks, type Task, type InsertTask,
+  shoppingListItems, type ShoppingListItem, type InsertShoppingListItem,
   devices, type Device, type InsertDevice,
   notifications, type Notification, type InsertNotification,
   houseInvitations, type HouseInvitation, type InsertHouseInvitation,
@@ -44,6 +45,13 @@ export interface IStorage {
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: number, updates: Partial<Task>): Promise<Task>;
   deleteTask(id: number): Promise<void>;
+
+  // Shopping list methods
+  getShoppingListItem(id: number): Promise<ShoppingListItem | undefined>;
+  getShoppingListItemsByHouse(houseId: number): Promise<ShoppingListItem[]>;
+  createShoppingListItem(item: InsertShoppingListItem): Promise<ShoppingListItem>;
+  updateShoppingListItem(id: number, updates: Partial<ShoppingListItem>): Promise<ShoppingListItem>;
+  deleteShoppingListItem(id: number): Promise<void>;
   
   // Device methods
   getDevice(id: number): Promise<Device | undefined>;
@@ -75,6 +83,7 @@ export class MemStorage implements IStorage {
   private houses: Map<number, House>;
   private houseMembers: Map<number, HouseMember>;
   private tasks: Map<number, Task>;
+  private shoppingListItems: Map<number, ShoppingListItem>;
   private devices: Map<number, Device>;
   private notifications: Map<number, Notification>;
   private invitations: Map<number, HouseInvitation>;
@@ -83,6 +92,7 @@ export class MemStorage implements IStorage {
   private houseIdCounter: number;
   private houseMemberIdCounter: number;
   private taskIdCounter: number;
+  private shoppingListItemIdCounter: number;
   private deviceIdCounter: number;
   private notificationIdCounter: number;
   private invitationIdCounter: number;
@@ -92,6 +102,7 @@ export class MemStorage implements IStorage {
     this.houses = new Map();
     this.houseMembers = new Map();
     this.tasks = new Map();
+    this.shoppingListItems = new Map();
     this.devices = new Map();
     this.notifications = new Map();
     this.invitations = new Map();
@@ -100,6 +111,7 @@ export class MemStorage implements IStorage {
     this.houseIdCounter = 1;
     this.houseMemberIdCounter = 1;
     this.taskIdCounter = 1;
+    this.shoppingListItemIdCounter = 1;
     this.deviceIdCounter = 1;
     this.notificationIdCounter = 1;
     this.invitationIdCounter = 1;
@@ -194,6 +206,9 @@ export class MemStorage implements IStorage {
     const tasksToDelete = Array.from(this.tasks.values()).filter(t => t.houseId === id);
     tasksToDelete.forEach(t => this.tasks.delete(t.id));
 
+    const shoppingItemsToDelete = Array.from(this.shoppingListItems.values()).filter(i => i.houseId === id);
+    shoppingItemsToDelete.forEach(i => this.shoppingListItems.delete(i.id));
+
     const devicesToDelete = Array.from(this.devices.values()).filter(d => d.houseId === id);
     devicesToDelete.forEach(d => this.devices.delete(d.id));
 
@@ -286,6 +301,63 @@ export class MemStorage implements IStorage {
   
   async deleteTask(id: number): Promise<void> {
     this.tasks.delete(id);
+  }
+
+  // Shopping list methods
+  async getShoppingListItem(id: number): Promise<ShoppingListItem | undefined> {
+    return this.shoppingListItems.get(id);
+  }
+
+  async getShoppingListItemsByHouse(houseId: number): Promise<ShoppingListItem[]> {
+    return Array.from(this.shoppingListItems.values())
+      .filter((item) => item.houseId === houseId)
+      .sort((a, b) => {
+        if (a.isPurchased !== b.isPurchased) {
+          return a.isPurchased ? 1 : -1;
+        }
+        return new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime();
+      });
+  }
+
+  async createShoppingListItem(insertItem: InsertShoppingListItem): Promise<ShoppingListItem> {
+    const id = this.shoppingListItemIdCounter++;
+    const now = new Date();
+    const item: ShoppingListItem = {
+      houseId: insertItem.houseId,
+      name: insertItem.name,
+      quantity: insertItem.quantity ?? 1,
+      unit: insertItem.unit ?? 'pcs',
+      category: insertItem.category ?? 'other',
+      note: insertItem.note ?? null,
+      addedById: insertItem.addedById,
+      id,
+      isPurchased: false,
+      purchasedById: null,
+      purchasedAt: null,
+      createdAt: now,
+      updatedAt: now,
+    };
+    this.shoppingListItems.set(id, item);
+    return item;
+  }
+
+  async updateShoppingListItem(id: number, updates: Partial<ShoppingListItem>): Promise<ShoppingListItem> {
+    const item = this.shoppingListItems.get(id);
+    if (!item) {
+      throw new Error(`Shopping list item with id ${id} not found`);
+    }
+
+    const updatedItem: ShoppingListItem = {
+      ...item,
+      ...updates,
+      updatedAt: new Date(),
+    };
+    this.shoppingListItems.set(id, updatedItem);
+    return updatedItem;
+  }
+
+  async deleteShoppingListItem(id: number): Promise<void> {
+    this.shoppingListItems.delete(id);
   }
   
   // Device methods

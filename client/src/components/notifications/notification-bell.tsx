@@ -129,6 +129,8 @@ export default function NotificationBell({ userId, houseId }: NotificationBellPr
         return '🏠';
       case 'house_invitation':
         return '✉️';
+      case 'shopping_list_updated':
+        return '🛒';
       default:
         return '🔔';
     }

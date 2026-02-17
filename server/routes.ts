@@ -7,6 +7,7 @@ import {
   insertHouseSchema,
   insertHouseMemberSchema,
   insertTaskSchema,
+  insertShoppingListItemSchema,
   insertDeviceSchema,
   insertNotificationSchema,
   TaskStatus,
@@ -855,6 +856,180 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       console.error('Error deleting task:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  /*
+   * Shopping List Routes
+   */
+
+  // Get shopping list items by house
+  app.get('/api/shopping-items', async (req, res) => {
+    try {
+      const houseId = req.query.houseId ? parseInt(req.query.houseId as string, 10) : undefined;
+      if (!houseId) {
+        return res.status(400).json({ message: 'houseId is required' });
+      }
+
+      const items = await storage.getShoppingListItemsByHouse(houseId);
+      res.json(items);
+    } catch (error) {
+      console.error('Error getting shopping list items:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Create shopping list item
+  app.post('/api/shopping-items', async (req, res) => {
+    try {
+      const itemData = insertShoppingListItemSchema.parse(req.body);
+      const item = await storage.createShoppingListItem(itemData);
+
+      broadcastToHouse(item.houseId, {
+        type: 'shopping_list_update',
+        action: 'created',
+        item,
+      });
+
+      res.status(201).json(item);
+    } catch (error) {
+      console.error('Error creating shopping list item:', error);
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: 'Invalid shopping item data', errors: error.errors });
+      }
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Update shopping list item
+  app.patch('/api/shopping-items/:id', async (req, res) => {
+    try {
+      const itemId = parseInt(req.params.id, 10);
+      const existingItem = await storage.getShoppingListItem(itemId);
+      if (!existingItem) {
+        return res.status(404).json({ message: 'Shopping list item not found' });
+      }
+
+      const payload = { ...req.body };
+      if (typeof payload.isPurchased === 'boolean') {
+        payload.purchasedAt = payload.isPurchased ? new Date() : null;
+        payload.purchasedById = payload.isPurchased ? payload.purchasedById || existingItem.addedById : null;
+      }
+
+      const updatedItem = await storage.updateShoppingListItem(itemId, payload);
+
+      broadcastToHouse(updatedItem.houseId, {
+        type: 'shopping_list_update',
+        action: 'updated',
+        item: updatedItem,
+      });
+
+      res.json(updatedItem);
+    } catch (error) {
+      console.error('Error updating shopping list item:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Delete shopping list item
+  app.delete('/api/shopping-items/:id', async (req, res) => {
+    try {
+      const itemId = parseInt(req.params.id, 10);
+      const existingItem = await storage.getShoppingListItem(itemId);
+      if (!existingItem) {
+        return res.status(404).json({ message: 'Shopping list item not found' });
+      }
+
+      await storage.deleteShoppingListItem(itemId);
+
+      broadcastToHouse(existingItem.houseId, {
+        type: 'shopping_list_update',
+        action: 'deleted',
+        itemId,
+      });
+
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting shopping list item:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Notify house members when user confirms shopping list changes
+  app.post('/api/shopping-items/commit', async (req, res) => {
+    try {
+      const { houseId, editorUserId, summary } = req.body as {
+        houseId?: number;
+        editorUserId?: number;
+        summary?: string;
+      };
+
+      if (!houseId || !editorUserId) {
+        return res.status(400).json({ message: 'houseId and editorUserId are required' });
+      }
+
+      const house = await storage.getHouse(houseId);
+      const editor = await storage.getUser(editorUserId);
+      if (!house || !editor) {
+        return res.status(404).json({ message: 'House or editor user not found' });
+      }
+
+      const members = await storage.getHouseMembers(houseId);
+      const recipients = members.filter((member) => member.userId !== editorUserId);
+      const notificationMessage = summary?.trim().length
+        ? summary.trim()
+        : `${editor.displayName || editor.email} updated the shared shopping list`;
+
+      for (const member of recipients) {
+        const memberUser = await storage.getUser(member.userId);
+        if (!memberUser) continue;
+
+        await storage.createNotification({
+          userId: member.userId,
+          houseId,
+          title: 'Shopping List Updated',
+          message: notificationMessage,
+          type: 'shopping_list_updated',
+          data: {
+            houseId,
+            editorUserId,
+            editorName: editor.displayName || editor.email,
+          },
+          read: false,
+        });
+
+        if (memberUser.fcmToken) {
+          try {
+            await sendNotificationToUser(
+              memberUser.fcmToken,
+              'Shopping List Updated',
+              notificationMessage,
+              {
+                type: 'shopping_list_updated',
+                houseId: houseId.toString(),
+                editorUserId: editorUserId.toString(),
+              }
+            );
+          } catch (pushError) {
+            console.error('Error sending shopping list push notification:', pushError);
+          }
+        }
+      }
+
+      broadcastToHouse(houseId, {
+        type: 'shopping_list_update',
+        action: 'committed',
+        houseId,
+        editorUserId,
+      });
+
+      res.json({
+        success: true,
+        notifiedUsers: recipients.length,
+      });
+    } catch (error) {
+      console.error('Error committing shopping list changes:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
