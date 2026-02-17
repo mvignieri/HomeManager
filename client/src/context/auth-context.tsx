@@ -23,17 +23,15 @@ export const AuthProvider: React.FC<{ children: ReactNode }> = ({ children }) =>
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
 
-  // Immediately set loading to false for development
   useEffect(() => {
-    console.log('Setting loading to false immediately');
-    setLoading(false);
-    
     const unsubscribe = auth.onAuthStateChanged((authUser) => {
       console.log('Auth state changed:', authUser ? 'logged in' : 'logged out');
       setUser(authUser);
+      setLoading(false); // Set loading to false AFTER auth state is determined
     }, (authError) => {
       console.error('Auth state error:', authError);
       setError(authError.message);
+      setLoading(false);
     });
 
     return () => {

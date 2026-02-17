@@ -14,7 +14,7 @@ export default function AcceptInvitePage() {
   const queryClient = useQueryClient();
   // Get token from URL query params
   const token = new URLSearchParams(window.location.search).get('token');
-  const { user: firebaseUser } = useAuth();
+  const { user: firebaseUser, loading: authLoading } = useAuth();
   const { setCurrentHouse } = useAppContext();
   const { toast } = useToast();
   const [accepted, setAccepted] = useState(false);
@@ -118,10 +118,19 @@ export default function AcceptInvitePage() {
     },
   });
 
-  // Reset loggingIn state when user logs in successfully
+  // Reset loggingIn state when user logs in successfully or after timeout
   useEffect(() => {
     if (firebaseUser && loggingIn) {
       setLoggingIn(false);
+    }
+
+    // Safety timeout: reset loggingIn after 10 seconds if still true
+    if (loggingIn) {
+      const timeout = setTimeout(() => {
+        console.warn('Login timeout - resetting loggingIn state');
+        setLoggingIn(false);
+      }, 10000);
+      return () => clearTimeout(timeout);
     }
   }, [firebaseUser, loggingIn]);
 
@@ -160,13 +169,16 @@ export default function AcceptInvitePage() {
     );
   }
 
-  if (isLoading) {
+  // Show loading spinner while auth or invitation is loading
+  if (authLoading || isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gray-50">
         <Card className="max-w-md">
           <CardContent className="pt-6">
             <Loader2 className="h-12 w-12 mx-auto mb-4 animate-spin text-primary" />
-            <p className="text-center text-gray-600">Loading invitation...</p>
+            <p className="text-center text-gray-600">
+              {authLoading ? 'Checking authentication...' : 'Loading invitation...'}
+            </p>
           </CardContent>
         </Card>
       </div>
