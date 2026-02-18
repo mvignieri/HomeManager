@@ -50,20 +50,6 @@ export default function AcceptInvitePage() {
     retry: 1,
   });
 
-  // Debug logging
-  React.useEffect(() => {
-    console.log('ACCEPT-INVITE STATE:', {
-      token,
-      hasFirebaseUser: !!firebaseUser,
-      hasDbUser: !!dbUser,
-      isLoadingDbUser,
-      authLoading,
-      isLoading,
-      hasError: !!error,
-      hasInviteData: !!inviteData,
-    });
-  }, [token, firebaseUser, dbUser, isLoadingDbUser, authLoading, isLoading, error, inviteData]);
-
   // Save token to localStorage when page loads
   React.useEffect(() => {
     if (token) {

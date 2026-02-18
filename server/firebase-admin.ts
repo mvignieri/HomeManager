@@ -1,8 +1,16 @@
-import * as admin from 'firebase-admin';
+import { initializeApp, getApps, cert, App } from 'firebase-admin/app';
+import { getMessaging } from 'firebase-admin/messaging';
 
-let firebaseAdmin: admin.app.App | null = null;
+let firebaseAdmin: App | null = null;
 
 export function initializeFirebaseAdmin() {
+  // Check if already initialized
+  const existingApps = getApps();
+  if (existingApps.length > 0) {
+    firebaseAdmin = existingApps[0];
+    return firebaseAdmin;
+  }
+
   if (firebaseAdmin) {
     return firebaseAdmin;
   }
@@ -12,17 +20,14 @@ export function initializeFirebaseAdmin() {
     const serviceAccount = process.env.FIREBASE_SERVICE_ACCOUNT_KEY;
 
     if (serviceAccount) {
+      // Parse and validate JSON
+      const serviceAccountJson = JSON.parse(serviceAccount);
+
       // Initialize with service account
-      firebaseAdmin = admin.initializeApp({
-        credential: admin.credential.cert(JSON.parse(serviceAccount)),
+      firebaseAdmin = initializeApp({
+        credential: cert(serviceAccountJson),
       });
       console.log('✓ Firebase Admin initialized with service account');
-    } else if (process.env.GOOGLE_APPLICATION_CREDENTIALS) {
-      // Initialize with default credentials
-      firebaseAdmin = admin.initializeApp({
-        credential: admin.credential.applicationDefault(),
-      });
-      console.log('✓ Firebase Admin initialized with default credentials');
     } else {
       console.log('⚠ Firebase Admin not initialized - no credentials found');
       console.log('  FCM notifications will not work until credentials are provided');
@@ -59,7 +64,9 @@ export async function sendNotificationToUser(
   }
 
   try {
-    const message: admin.messaging.Message = {
+    const messaging = getMessaging(admin);
+
+    const message = {
       notification: {
         title,
         body,
@@ -74,7 +81,7 @@ export async function sendNotificationToUser(
       },
     };
 
-    const response = await admin.messaging().send(message);
+    const response = await messaging.send(message);
     console.log('Successfully sent message:', response);
     return true;
   } catch (error: any) {
@@ -105,7 +112,9 @@ export async function sendNotificationToMultipleUsers(
   }
 
   try {
-    const message: admin.messaging.MulticastMessage = {
+    const messaging = getMessaging(admin);
+
+    const message = {
       notification: {
         title,
         body,
@@ -120,7 +129,7 @@ export async function sendNotificationToMultipleUsers(
       },
     };
 
-    const response = await admin.messaging().sendEachForMulticast(message);
+    const response = await messaging.sendEachForMulticast(message);
     console.log(`Successfully sent ${response.successCount} messages`);
 
     if (response.failureCount > 0) {

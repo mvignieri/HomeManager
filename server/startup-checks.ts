@@ -23,9 +23,6 @@ export async function runStartupChecks(): Promise<void> {
   console.log('\n🔐 Checking environment variables...');
   const requiredEnvVars = [
     'DATABASE_URL',
-    'FIREBASE_PROJECT_ID',
-    'FIREBASE_CLIENT_EMAIL',
-    'FIREBASE_PRIVATE_KEY',
   ];
 
   const optionalEnvVars = [
@@ -51,6 +48,19 @@ export async function runStartupChecks(): Promise<void> {
   }
 
   console.log('\n   Optional variables:');
+
+  // Special check for FIREBASE_SERVICE_ACCOUNT_KEY JSON validity
+  if (process.env.FIREBASE_SERVICE_ACCOUNT_KEY) {
+    try {
+      JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY);
+      console.log(`   ✅ FIREBASE_SERVICE_ACCOUNT_KEY (valid JSON)`);
+    } catch (error) {
+      console.log(`   ❌ FIREBASE_SERVICE_ACCOUNT_KEY (invalid JSON)`);
+    }
+  } else {
+    console.log(`   ⚠️  FIREBASE_SERVICE_ACCOUNT_KEY - not set (push notifications disabled)`);
+  }
+
   for (const envVar of optionalEnvVars) {
     if (process.env[envVar]) {
       // Don't log the full value for security
@@ -77,13 +87,13 @@ export async function runStartupChecks(): Promise<void> {
   // Check 4: Firebase Admin
   console.log('\n🔥 Checking Firebase Admin SDK...');
   try {
-    const { initializeApp } = await import('firebase-admin/app');
     const { getApps } = await import('firebase-admin/app');
 
     if (getApps().length > 0) {
       console.log('   ✅ Firebase Admin initialized');
     } else {
       console.log('   ⚠️  Firebase Admin not initialized');
+      console.log('   Note: This is expected if FIREBASE_SERVICE_ACCOUNT_KEY is not set');
     }
   } catch (error) {
     console.log('   ❌ Firebase Admin error:', error instanceof Error ? error.message : 'Unknown error');
