@@ -104,14 +104,21 @@ export const signInWithGoogle = async () => {
 // Handle redirect result after returning from Google sign-in
 export const handleRedirectResult = async () => {
   try {
+    console.warn('🔵 Firebase: Checking redirect result...');
+    console.warn('🔵 Firebase: Current user before getRedirectResult:', auth.currentUser?.email || 'none');
+
     const result = await getRedirectResult(auth);
+
+    console.warn('🔵 Firebase: getRedirectResult returned:', result ? 'result found' : 'null');
+    console.warn('🔵 Firebase: Current user after getRedirectResult:', auth.currentUser?.email || 'none');
+
     if (result) {
-      console.log('User signed in via redirect:', result.user.email);
+      console.warn('🟢 Firebase: User signed in via redirect:', result.user.email);
       return result.user;
     }
     return null;
-  } catch (error) {
-    console.error("Error handling redirect result:", error);
+  } catch (error: any) {
+    console.error("🔴 Firebase: Error handling redirect result:", error.code, error.message);
     throw error;
   }
 };
