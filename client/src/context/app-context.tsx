@@ -68,6 +68,21 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       }
     }, 2000);
 
+    // Handle redirect result from Google sign-in
+    import('@/lib/firebase').then(({ handleRedirectResult }) => {
+      handleRedirectResult()
+        .then((user) => {
+          if (user) {
+            console.warn('🟢 AppContext: Redirect result - user signed in:', user.email);
+          } else {
+            console.warn('🟡 AppContext: Redirect result - no user');
+          }
+        })
+        .catch((error) => {
+          console.error('🔴 AppContext: Error handling redirect:', error);
+        });
+    });
+
     const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
       // Clear the timeout since we received a response
       clearTimeout(timeoutId);
