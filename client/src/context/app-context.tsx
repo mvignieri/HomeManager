@@ -74,6 +74,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
       if (authUser) {
         // User is signed in
+        console.warn('🔵 AppContext: User signed in, checking database');
         setUser(authUser);
 
         // Check if the user exists in our database, if not create them
@@ -95,20 +96,23 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             throw new Error('Failed to verify user');
           }
 
+          console.warn('🟢 AppContext: User verified in database');
+
           // Check for pending invitation token
           // Only redirect if not already on the accept-invite page
           const pendingToken = localStorage.getItem('pendingInviteToken');
           const currentLocation = window.location.pathname;
 
           if (pendingToken && !currentLocation.startsWith('/accept-invite')) {
-            // Redirect to accept-invite page with the token immediately
+            console.warn('🔄 AppContext: Redirecting to accept-invite with token');
             setLocation(`/accept-invite?token=${pendingToken}`);
           }
         } catch (error) {
-          console.error('Error checking user:', error);
+          console.error('🔴 AppContext: Error checking user:', error);
         }
       } else {
         // User is signed out
+        console.warn('🟡 AppContext: User signed out');
         setUser(null);
         setCurrentHouse(null);
       }

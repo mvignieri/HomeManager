@@ -19,6 +19,12 @@ export default function AcceptInvitePage() {
   const { toast } = useToast();
   const [accepted, setAccepted] = useState(false);
 
+  // Log when page mounts
+  React.useEffect(() => {
+    console.warn('🔵 AcceptInvite: Page mounted with token:', token ? 'present' : 'missing');
+    console.warn('🔵 AcceptInvite: Firebase user:', firebaseUser?.email || 'none');
+  }, []);
+
   // Handle Google Sign-In (will redirect to Google and back)
   const handleLogin = async () => {
     try {
@@ -129,7 +135,10 @@ export default function AcceptInvitePage() {
     if (inviteData && dbUser && !accepted && !acceptMutation.isPending) {
       // Check if user's email matches invitation email
       if (dbUser.email === inviteData.invitation.email) {
+        console.warn('🟢 AcceptInvite: Auto-accepting invitation for', dbUser.email);
         acceptMutation.mutate();
+      } else {
+        console.warn('🔴 AcceptInvite: Email mismatch -', dbUser.email, 'vs', inviteData.invitation.email);
       }
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
