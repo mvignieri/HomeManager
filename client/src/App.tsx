@@ -66,9 +66,11 @@ function App() {
   // Handle login with Google
   const login = async () => {
     try {
+      console.warn('🔵 App: Starting login');
       await signInWithGoogle();
+      console.warn('🟢 App: Login redirect initiated');
     } catch (error: any) {
-      console.error("Firebase login error:", error);
+      console.error("🔴 App: Firebase login error:", error);
       toast({
         title: "Login Error",
         description: error.message || "Failed to sign in with Google",
@@ -80,13 +82,15 @@ function App() {
   // Handle logout
   const handleLogout = async () => {
     try {
+      console.warn('🔵 App: Logging out user');
       await signOut();
+      console.warn('🟢 App: User logged out successfully');
       toast({
         title: "Logged Out",
         description: "You have been successfully logged out",
       });
     } catch (error: any) {
-      console.error("Logout error:", error);
+      console.error("🔴 App: Logout error:", error);
       toast({
         title: "Logout Error",
         description: error.message || "Failed to log out",

@@ -92,10 +92,11 @@ provider.setCustomParameters({
 // Sign in with Google using redirect (avoids popup blockers and CORS issues)
 export const signInWithGoogle = async () => {
   try {
+    console.warn('🔵 Firebase: Starting Google sign-in redirect');
     await signInWithRedirect(auth, provider);
     // Note: this function doesn't return immediately - the page will redirect
   } catch (error) {
-    console.error("Error signing in with Google:", error);
+    console.error("🔴 Firebase: Error signing in with Google:", error);
     throw error;
   }
 };
