@@ -3,7 +3,6 @@ import { useLocation } from 'wouter';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useAuth } from '@/context/auth-context';
 import { useAppContext } from '@/context/app-context';
 import { Loader2, CheckCircle, XCircle, Home as HomeIcon } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
@@ -14,8 +13,8 @@ export default function AcceptInvitePage() {
   const queryClient = useQueryClient();
   // Get token from URL query params
   const token = new URLSearchParams(window.location.search).get('token');
-  const { user: firebaseUser, loading: authLoading } = useAuth();
-  const { setCurrentHouse } = useAppContext();
+  // Use AppContext instead of AuthContext to avoid race condition
+  const { user: firebaseUser, loading: authLoading, setCurrentHouse } = useAppContext();
   const { toast } = useToast();
   const [accepted, setAccepted] = useState(false);
 
