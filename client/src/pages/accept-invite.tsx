@@ -36,24 +36,41 @@ export default function AcceptInvitePage() {
 
   // Get current database user
   // Use retry logic to handle race condition where user might not be created yet
-  const { data: dbUser, isLoading: isLoadingDbUser } = useQuery({
+  const { data: dbUser, isLoading: isLoadingDbUser, error: dbUserError } = useQuery({
     queryKey: ['/api/users/me', firebaseUser?.uid],
     queryFn: async () => {
       if (!firebaseUser) return null;
+      console.log('🟡 AcceptInvite: Fetching dbUser for', firebaseUser.email);
       const res = await fetch(`/api/users/me?uid=${firebaseUser.uid}`);
       if (!res.ok) {
         if (res.status === 404) {
           // User not found - might be being created, throw to trigger retry
+          console.log('🟡 AcceptInvite: User not found (404), will retry...');
           throw new Error('User not found in database yet');
         }
         throw new Error('Failed to fetch current user');
       }
-      return res.json();
+      const user = await res.json();
+      console.log('🟡 AcceptInvite: dbUser loaded:', user.email);
+      return user;
     },
     enabled: !!firebaseUser,
     retry: 5, // Retry up to 5 times
     retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000), // Exponential backoff: 1s, 2s, 4s, 5s, 5s
   });
+
+  // Log state changes
+  React.useEffect(() => {
+    console.log('🟡 AcceptInvite: State:', {
+      hasToken: !!token,
+      hasFirebaseUser: !!firebaseUser,
+      hasDbUser: !!dbUser,
+      isLoadingDbUser,
+      dbUserError: dbUserError?.message,
+      hasInviteData: !!inviteData,
+      accepted
+    });
+  }, [token, firebaseUser, dbUser, isLoadingDbUser, dbUserError, inviteData, accepted]);
 
   // Save token to localStorage when page loads
   React.useEffect(() => {

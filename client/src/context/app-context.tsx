@@ -72,12 +72,15 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       // Clear the timeout since we received a response
       clearTimeout(timeoutId);
 
+      console.log('🟢 AppProvider: Auth state changed:', authUser ? authUser.email : 'null');
+
       if (authUser) {
         // User is signed in
         setUser(authUser);
 
         // Check if the user exists in our database, if not create them
         try {
+          console.log('🟢 AppProvider: Calling /api/user/check');
           const response = await fetch('/api/user/check', {
             method: 'POST',
             headers: {
@@ -95,20 +98,25 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
             throw new Error('Failed to verify user');
           }
 
+          console.log('🟢 AppProvider: User check completed');
+
           // Check for pending invitation token
           // Only redirect if not already on the accept-invite page
           const pendingToken = localStorage.getItem('pendingInviteToken');
           const currentLocation = window.location.pathname;
+          console.log('🟢 AppProvider: Checking pending token:', { pendingToken, currentLocation });
+
           if (pendingToken && !currentLocation.startsWith('/accept-invite')) {
             // Redirect to accept-invite page with the token immediately
-            console.log('Redirecting to accept-invite with token:', pendingToken);
+            console.log('🟢 AppProvider: Redirecting to accept-invite with token:', pendingToken);
             setLocation(`/accept-invite?token=${pendingToken}`);
           }
         } catch (error) {
-          console.error('Error checking user:', error);
+          console.error('🔴 AppProvider: Error checking user:', error);
         }
       } else {
         // User is signed out
+        console.log('🟢 AppProvider: User signed out');
         setUser(null);
         setCurrentHouse(null);
       }
