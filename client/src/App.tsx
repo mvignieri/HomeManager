@@ -64,18 +64,32 @@ function App() {
 
 
   // Handle login with Google
+  const [isLoggingIn, setIsLoggingIn] = React.useState(false);
+
   const login = async () => {
+    if (isLoggingIn) return; // Prevent multiple clicks
+
     try {
+      setIsLoggingIn(true);
       console.warn('🔵 App: Starting login');
       await signInWithGoogle();
-      console.warn('🟢 App: Login redirect initiated');
+      console.warn('🟢 App: Login successful');
     } catch (error: any) {
       console.error("🔴 App: Firebase login error:", error);
+
+      // Don't show error for cancelled popup (user closed it or clicked multiple times)
+      if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
+        console.warn('🟡 App: Popup cancelled by user');
+        return;
+      }
+
       toast({
         title: "Login Error",
         description: error.message || "Failed to sign in with Google",
         variant: "destructive"
       });
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -130,13 +144,23 @@ function App() {
             <div className="space-y-4">
               <Button
                 onClick={login}
+                disabled={isLoggingIn}
                 variant="outline"
-                className="w-full flex items-center justify-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary"
+                className="w-full flex items-center justify-center py-3 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                  <path d="M12.545 10.239v3.821h5.445c-0.712 2.315-2.647 3.972-5.445 3.972-3.332 0-6.033-2.701-6.033-6.032s2.701-6.032 6.033-6.032c1.498 0 2.866 0.549 3.921 1.453l2.814-2.814c-1.798-1.677-4.198-2.702-6.735-2.702-5.523 0-10 4.477-10 10s4.477 10 10 10c8.396 0 10-7.261 10-10 0-0.635-0.057-1.252-0.164-1.841h-9.836z" fill="#4285F4"/>
-                </svg>
-                Sign in with Google
+                {isLoggingIn ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-t-2 border-b-2 border-primary mr-2"></div>
+                    Signing in...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                      <path d="M12.545 10.239v3.821h5.445c-0.712 2.315-2.647 3.972-5.445 3.972-3.332 0-6.033-2.701-6.033-6.032s2.701-6.032 6.033-6.032c1.498 0 2.866 0.549 3.921 1.453l2.814-2.814c-1.798-1.677-4.198-2.702-6.735-2.702-5.523 0-10 4.477-10 10s4.477 10 10 10c8.396 0 10-7.261 10-10 0-0.635-0.057-1.252-0.164-1.841h-9.836z" fill="#4285F4"/>
+                    </svg>
+                    Sign in with Google
+                  </>
+                )}
               </Button>
 
               <p className="text-xs text-center text-gray-500 mt-8">

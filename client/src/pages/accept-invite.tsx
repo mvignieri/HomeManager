@@ -24,18 +24,30 @@ export default function AcceptInvitePage() {
     console.warn('🔵 AcceptInvite: Firebase user:', firebaseUser?.email || 'none');
   }, []);
 
-  // Handle Google Sign-In (will redirect to Google and back)
+  // Handle Google Sign-In
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+
   const handleLogin = async () => {
+    if (isLoggingIn) return; // Prevent multiple clicks
+
     try {
+      setIsLoggingIn(true);
       await signInWithGoogle();
-      // Note: Page will redirect, so no need to handle state here
     } catch (error: any) {
       console.error("Login error:", error);
+
+      // Don't show error for cancelled popup
+      if (error.code === 'auth/cancelled-popup-request' || error.code === 'auth/popup-closed-by-user') {
+        return;
+      }
+
       toast({
         title: "Login Error",
         description: error.message || "Failed to sign in with Google",
         variant: "destructive"
       });
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
@@ -295,12 +307,22 @@ export default function AcceptInvitePage() {
               </p>
               <Button
                 onClick={handleLogin}
-                className="w-full flex items-center justify-center"
+                disabled={isLoggingIn}
+                className="w-full flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
-                  <path d="M12.545 10.239v3.821h5.445c-0.712 2.315-2.647 3.972-5.445 3.972-3.332 0-6.033-2.701-6.033-6.032s2.701-6.032 6.033-6.032c1.498 0 2.866 0.549 3.921 1.453l2.814-2.814c-1.798-1.677-4.198-2.702-6.735-2.702-5.523 0-10 4.477-10 10s4.477 10 10 10c8.396 0 10-7.261 10-10 0-0.635-0.057-1.252-0.164-1.841h-9.836z" fill="currentColor"/>
-                </svg>
-                Sign in with Google
+                {isLoggingIn ? (
+                  <>
+                    <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                    Signing in...
+                  </>
+                ) : (
+                  <>
+                    <svg className="w-5 h-5 mr-2" viewBox="0 0 24 24">
+                      <path d="M12.545 10.239v3.821h5.445c-0.712 2.315-2.647 3.972-5.445 3.972-3.332 0-6.033-2.701-6.033-6.032s2.701-6.032 6.033-6.032c1.498 0 2.866 0.549 3.921 1.453l2.814-2.814c-1.798-1.677-4.198-2.702-6.735-2.702-5.523 0-10 4.477-10 10s4.477 10 10 10c8.396 0 10-7.261 10-10 0-0.635-0.057-1.252-0.164-1.841h-9.836z" fill="currentColor"/>
+                    </svg>
+                    Sign in with Google
+                  </>
+                )}
               </Button>
             </div>
           </CardContent>
