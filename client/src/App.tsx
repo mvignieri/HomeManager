@@ -95,19 +95,8 @@ function App() {
     }
   };
 
-  // Debug logging
-  console.log('App render:', {
-    loading,
-    hasUser: !!user,
-    hasDbUser: !!dbUser,
-    location,
-    userEmail: user?.email,
-    housesCount: houses.length
-  });
-
   // Show loading spinner - also show while dbUser is loading
   if (loading || (user && !dbUser && !location.startsWith('/accept-invite'))) {
-    console.log('Showing loading screen:', { loading, hasUser: !!user, hasDbUser: !!dbUser, location });
     return (
       <div className="flex flex-col items-center justify-center h-screen gap-4">
         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
@@ -120,13 +109,11 @@ function App() {
 
   // Allow access to accept-invite page (with or without authentication)
   if (location.startsWith('/accept-invite')) {
-    console.log('Rendering AcceptInvitePage');
     return <AcceptInvitePage />;
   }
 
   // Show login page if not authenticated
   if (!user) {
-    console.log('Showing login page - no user');
     return (
       <div className="flex flex-col items-center justify-center h-screen bg-gradient-to-b from-indigo-500 to-purple-600 p-6">
         <Card className="w-full max-w-md bg-white rounded-xl shadow-lg">
