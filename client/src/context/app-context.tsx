@@ -100,10 +100,9 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
           const pendingToken = localStorage.getItem('pendingInviteToken');
           const currentLocation = window.location.pathname;
           if (pendingToken && !currentLocation.startsWith('/accept-invite')) {
-            // Redirect to accept-invite page with the token
-            setTimeout(() => {
-              setLocation(`/accept-invite?token=${pendingToken}`);
-            }, 500);
+            // Redirect to accept-invite page with the token immediately
+            console.log('Redirecting to accept-invite with token:', pendingToken);
+            setLocation(`/accept-invite?token=${pendingToken}`);
           }
         } catch (error) {
           console.error('Error checking user:', error);

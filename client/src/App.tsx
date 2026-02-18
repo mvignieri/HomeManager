@@ -107,8 +107,8 @@ function App() {
     );
   }
 
-  // Allow access to accept-invite page without authentication
-  if (!user && location.startsWith('/accept-invite')) {
+  // Allow access to accept-invite page (with or without authentication)
+  if (location.startsWith('/accept-invite')) {
     return <AcceptInvitePage />;
   }
 
