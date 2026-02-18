@@ -1,5 +1,5 @@
 import { initializeApp } from "firebase/app";
-import { getAuth, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "firebase/auth";
+import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "firebase/auth";
 import { getMessaging, getToken, onMessage, isSupported } from "firebase/messaging";
 
 const firebaseConfig = {
@@ -89,14 +89,15 @@ provider.setCustomParameters({
   prompt: 'select_account'
 });
 
-// Sign in with Google using redirect (avoids popup blockers and CORS issues)
+// Sign in with Google using popup
 export const signInWithGoogle = async () => {
   try {
-    console.warn('🔵 Firebase: Starting Google sign-in redirect');
-    await signInWithRedirect(auth, provider);
-    // Note: this function doesn't return immediately - the page will redirect
-  } catch (error) {
-    console.error("🔴 Firebase: Error signing in with Google:", error);
+    console.warn('🔵 Firebase: Starting Google sign-in with popup');
+    const result = await signInWithPopup(auth, provider);
+    console.warn('🟢 Firebase: Sign-in successful:', result.user.email);
+    return result.user;
+  } catch (error: any) {
+    console.error("🔴 Firebase: Error signing in with Google:", error.code, error.message);
     throw error;
   }
 };

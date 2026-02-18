@@ -61,43 +61,14 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
 
   // Listen for auth state changes
   useEffect(() => {
-    let unsubscribed = false;
-
     // Set a timeout to exit loading state in case Firebase auth doesn't respond
     const timeoutId = setTimeout(() => {
-      if (loading && !unsubscribed) {
+      if (loading) {
         setLoading(false);
       }
     }, 2000);
 
-    // Handle redirect result from Google sign-in with retry
-    const handleRedirect = async () => {
-      try {
-        const { handleRedirectResult } = await import('@/lib/firebase');
-
-        // Try multiple times with delay to ensure Firebase has time to process
-        for (let i = 0; i < 3; i++) {
-          const user = await handleRedirectResult();
-          if (user) {
-            console.warn('🟢 AppContext: Redirect result - user signed in:', user.email);
-            return;
-          }
-
-          if (i < 2) {
-            await new Promise(resolve => setTimeout(resolve, 300)); // Wait 300ms
-          }
-        }
-
-        console.warn('🟡 AppContext: Redirect result - no user after retries');
-      } catch (error) {
-        console.error('🔴 AppContext: Error handling redirect:', error);
-      }
-    };
-
-    handleRedirect();
-
     const unsubscribe = auth.onAuthStateChanged(async (authUser) => {
-      if (unsubscribed) return;
       // Clear the timeout since we received a response
       clearTimeout(timeoutId);
 
@@ -149,7 +120,6 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     });
 
     return () => {
-      unsubscribed = true;
       clearTimeout(timeoutId);
       unsubscribe();
     };
