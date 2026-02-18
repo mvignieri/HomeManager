@@ -35,19 +35,24 @@ export default function AcceptInvitePage() {
   };
 
   // Get current database user
+  // Use retry logic to handle race condition where user might not be created yet
   const { data: dbUser, isLoading: isLoadingDbUser } = useQuery({
     queryKey: ['/api/users/me', firebaseUser?.uid],
     queryFn: async () => {
       if (!firebaseUser) return null;
       const res = await fetch(`/api/users/me?uid=${firebaseUser.uid}`);
       if (!res.ok) {
-        if (res.status === 404) return null;
+        if (res.status === 404) {
+          // User not found - might be being created, throw to trigger retry
+          throw new Error('User not found in database yet');
+        }
         throw new Error('Failed to fetch current user');
       }
       return res.json();
     },
     enabled: !!firebaseUser,
-    retry: 1,
+    retry: 5, // Retry up to 5 times
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000), // Exponential backoff: 1s, 2s, 4s, 5s, 5s
   });
 
   // Save token to localStorage when page loads
