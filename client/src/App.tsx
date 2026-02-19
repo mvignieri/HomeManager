@@ -30,6 +30,7 @@ function App() {
   useFCM();
 
   // Get current database user
+  // Use retry logic to handle race condition where user might not be created yet after login
   const { data: dbUser } = useQuery({
     queryKey: ['/api/users/me', user?.uid],
     queryFn: async () => {
@@ -37,15 +38,18 @@ function App() {
       const res = await fetch(`/api/users/me?uid=${user.uid}`);
       if (!res.ok) {
         if (res.status === 404) {
-          console.warn('User not found in database');
-          return null;
+          // User not found - might be being created, throw to trigger retry
+          console.warn('🟡 App: User not found in database yet, will retry...');
+          throw new Error('User not found in database yet');
         }
         throw new Error('Failed to fetch current user');
       }
+      console.warn('🟢 App: User loaded from database:', user.email);
       return res.json();
     },
     enabled: !!user,
-    retry: 1,
+    retry: 5, // Retry up to 5 times
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 5000), // Exponential backoff: 1s, 2s, 4s, 5s, 5s
   });
 
   // Check for pending invitations by email
