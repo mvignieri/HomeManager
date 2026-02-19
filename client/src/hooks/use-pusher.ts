@@ -57,6 +57,12 @@ export function usePusher(houseId: number | undefined, userId: number | undefine
         queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
       });
 
+      // Listen for shopping list events
+      houseChannel.bind('shopping-list-updated', () => {
+        console.log('📡 Received shopping-list-updated event');
+        queryClient.invalidateQueries({ queryKey: ['/api/shopping-items'] });
+      });
+
       console.log(`🔔 Subscribed to house-${houseId}`);
     }
 

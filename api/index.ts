@@ -12,6 +12,7 @@ import {
   insertTaskSchema,
   insertDeviceSchema,
   insertNotificationSchema,
+  insertShoppingListItemSchema,
   TaskStatus,
   TaskPriority,
   DeviceStatus,
@@ -351,6 +352,14 @@ app.post('/api/houses/:id/invitations', async (req, res) => {
         });
         console.log(`Notification created for existing user: ${email}`);
 
+        // Trigger Pusher event for notification
+        await triggerUserEvent(invitedUser.id, 'notification-created', {
+          notification: {
+            title: 'New House Invitation',
+            message: `${inviter.displayName || inviter.email} has invited you to join ${house.name}`,
+          }
+        });
+
         // Send push notification if user has FCM token
         if (invitedUser.fcmToken) {
           try {
@@ -609,6 +618,49 @@ app.post('/api/tasks', async (req, res) => {
     const taskData = insertTaskSchema.parse(req.body);
     const task = await storage.createTask(taskData);
 
+    // If task is assigned to someone, create notification
+    if (task.assignedToId) {
+      const assignedUser = await storage.getUser(task.assignedToId);
+      if (assignedUser) {
+        // Create in-app notification
+        await storage.createNotification({
+          userId: assignedUser.id,
+          houseId: task.houseId,
+          title: 'New Task Assigned',
+          message: `You have been assigned the task: ${task.title}`,
+          type: 'task_assigned',
+          data: { taskId: task.id },
+          read: false,
+        });
+
+        // Trigger Pusher event for notification
+        await triggerUserEvent(assignedUser.id, 'notification-created', {
+          notification: {
+            title: 'New Task Assigned',
+            message: `You have been assigned the task: ${task.title}`,
+          }
+        });
+
+        // Send push notification via FCM
+        if (assignedUser.fcmToken) {
+          try {
+            await sendNotificationToUser(
+              assignedUser.fcmToken,
+              'New Task Assigned',
+              `You have been assigned the task: ${task.title}`,
+              {
+                taskId: task.id.toString(),
+                type: 'task_assigned',
+              }
+            );
+            console.log(`Push notification sent to ${assignedUser.email}`);
+          } catch (fcmError) {
+            console.error('Error sending push notification:', fcmError);
+          }
+        }
+      }
+    }
+
     // Trigger Pusher event for task creation
     await triggerHouseEvent(task.houseId, 'task-created', { task });
 
@@ -821,6 +873,176 @@ app.delete('/api/tasks/:id', async (req, res) => {
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting task:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+/*
+ * Shopping List Routes
+ */
+
+// Get shopping list items by house
+app.get('/api/shopping-items', async (req, res) => {
+  try {
+    const houseId = req.query.houseId ? parseInt(req.query.houseId as string, 10) : undefined;
+    if (!houseId) {
+      return res.status(400).json({ message: 'houseId is required' });
+    }
+
+    const items = await storage.getShoppingListItemsByHouse(houseId);
+    res.json(items);
+  } catch (error) {
+    console.error('Error getting shopping list items:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Create shopping list item
+app.post('/api/shopping-items', async (req, res) => {
+  try {
+    const itemData = insertShoppingListItemSchema.parse(req.body);
+    const item = await storage.createShoppingListItem(itemData);
+
+    // Trigger Pusher event for shopping list update
+    await triggerHouseEvent(item.houseId, 'shopping-list-updated', { item });
+
+    res.status(201).json(item);
+  } catch (error) {
+    console.error('Error creating shopping list item:', error);
+    if (error instanceof z.ZodError) {
+      return res.status(400).json({ message: 'Invalid shopping item data', errors: error.errors });
+    }
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Update shopping list item
+app.patch('/api/shopping-items/:id', async (req, res) => {
+  try {
+    const itemId = parseInt(req.params.id, 10);
+    const existingItem = await storage.getShoppingListItem(itemId);
+    if (!existingItem) {
+      return res.status(404).json({ message: 'Shopping list item not found' });
+    }
+
+    const payload = { ...req.body };
+    if (typeof payload.isPurchased === 'boolean') {
+      payload.purchasedAt = payload.isPurchased ? new Date() : null;
+      payload.purchasedById = payload.isPurchased ? payload.purchasedById || existingItem.addedById : null;
+    }
+
+    const updatedItem = await storage.updateShoppingListItem(itemId, payload);
+
+    // Trigger Pusher event for shopping list update
+    await triggerHouseEvent(updatedItem.houseId, 'shopping-list-updated', { item: updatedItem });
+
+    res.json(updatedItem);
+  } catch (error) {
+    console.error('Error updating shopping list item:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Delete shopping list item
+app.delete('/api/shopping-items/:id', async (req, res) => {
+  try {
+    const itemId = parseInt(req.params.id, 10);
+    const existingItem = await storage.getShoppingListItem(itemId);
+    if (!existingItem) {
+      return res.status(404).json({ message: 'Shopping list item not found' });
+    }
+
+    const houseId = existingItem.houseId;
+    await storage.deleteShoppingListItem(itemId);
+
+    // Trigger Pusher event for shopping list deletion
+    await triggerHouseEvent(houseId, 'shopping-list-updated', { itemId });
+
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting shopping list item:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Notify house members when user confirms shopping list changes
+app.post('/api/shopping-items/commit', async (req, res) => {
+  try {
+    const { houseId, editorUserId, summary } = req.body as {
+      houseId?: number;
+      editorUserId?: number;
+      summary?: string;
+    };
+
+    if (!houseId || !editorUserId) {
+      return res.status(400).json({ message: 'houseId and editorUserId are required' });
+    }
+
+    const house = await storage.getHouse(houseId);
+    const editor = await storage.getUser(editorUserId);
+    if (!house || !editor) {
+      return res.status(404).json({ message: 'House or editor user not found' });
+    }
+
+    const members = await storage.getHouseMembers(houseId);
+    const recipients = members.filter((member) => member.userId !== editorUserId);
+    const notificationMessage = summary?.trim().length
+      ? summary.trim()
+      : `${editor.displayName || editor.email} updated the shared shopping list`;
+
+    for (const member of recipients) {
+      const memberUser = await storage.getUser(member.userId);
+      if (!memberUser) continue;
+
+      await storage.createNotification({
+        userId: member.userId,
+        houseId,
+        title: 'Shopping List Updated',
+        message: notificationMessage,
+        type: 'shopping_list_updated',
+        data: {
+          houseId,
+          editorUserId,
+          editorName: editor.displayName || editor.email,
+        },
+        read: false,
+      });
+
+      // Trigger Pusher event for notification
+      await triggerUserEvent(memberUser.id, 'notification-created', {
+        notification: {
+          title: 'Shopping List Updated',
+          message: notificationMessage,
+        }
+      });
+
+      if (memberUser.fcmToken) {
+        try {
+          await sendNotificationToUser(
+            memberUser.fcmToken,
+            'Shopping List Updated',
+            notificationMessage,
+            {
+              type: 'shopping_list_updated',
+              houseId: houseId.toString(),
+              editorUserId: editorUserId.toString(),
+            }
+          );
+        } catch (pushError) {
+          console.error('Error sending shopping list push notification:', pushError);
+        }
+      }
+    }
+
+    // Trigger Pusher event for shopping list commit
+    await triggerHouseEvent(houseId, 'shopping-list-updated', { committed: true });
+
+    res.json({
+      success: true,
+      notifiedUsers: recipients.length,
+    });
+  } catch (error) {
+    console.error('Error committing shopping list changes:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
