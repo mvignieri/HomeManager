@@ -742,26 +742,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/tasks/:id', async (req, res) => {
     try {
       const taskId = parseInt(req.params.id);
+      console.log('Updating task:', taskId, 'with data:', req.body);
+
       const task = await storage.getTask(taskId);
-      
+
       if (!task) {
+        console.log('Task not found:', taskId);
         return res.status(404).json({ message: 'Task not found' });
       }
-      
+
+      console.log('Current task:', task);
+
+      // Convert date strings to Date objects
+      const updates = { ...req.body };
+      if (updates.dueDate && typeof updates.dueDate === 'string') {
+        updates.dueDate = new Date(updates.dueDate);
+      }
+      if (updates.completedAt && typeof updates.completedAt === 'string') {
+        updates.completedAt = new Date(updates.completedAt);
+      }
+
       // Update task
-      const updatedTask = await storage.updateTask(taskId, req.body);
-      
+      const updatedTask = await storage.updateTask(taskId, updates);
+
+      console.log('Updated task:', updatedTask);
+
       // Send WebSocket notification
       broadcastToHouse(updatedTask.houseId, {
         type: 'task_update',
         action: 'updated',
         task: updatedTask,
       });
-      
+
       res.json(updatedTask);
     } catch (error) {
       console.error('Error updating task:', error);
-      res.status(500).json({ message: 'Internal server error' });
+      console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+      res.status(500).json({ message: 'Internal server error', error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
   
