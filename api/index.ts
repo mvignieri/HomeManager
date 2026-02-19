@@ -643,7 +643,47 @@ app.patch('/api/tasks/:id', async (req, res) => {
 
     console.log('Updates after date conversion:', JSON.stringify(updates, null, 2));
 
+    // Check if assignedToId is being changed
+    const assignedToChanged = updates.assignedToId !== undefined && updates.assignedToId !== task.assignedToId;
+
     const updatedTask = await storage.updateTask(taskId, updates);
+
+    // If task was assigned to someone new, create notification and send push
+    if (assignedToChanged && updatedTask.assignedToId) {
+      const assignedUser = await storage.getUser(updatedTask.assignedToId);
+      if (assignedUser) {
+        // Create in-app notification
+        await storage.createNotification({
+          userId: assignedUser.id,
+          houseId: updatedTask.houseId,
+          title: 'New Task Assigned',
+          message: `You have been assigned the task: ${updatedTask.title}`,
+          type: 'task_assigned',
+          data: { taskId: updatedTask.id },
+          read: false,
+        });
+
+        // Send push notification via Firebase Cloud Messaging
+        if (assignedUser.fcmToken) {
+          try {
+            await sendNotificationToUser(
+              assignedUser.fcmToken,
+              'New Task Assigned',
+              `You have been assigned the task: ${updatedTask.title}`,
+              {
+                taskId: updatedTask.id.toString(),
+                type: 'task_assigned',
+              }
+            );
+            console.log(`Push notification sent to ${assignedUser.email}`);
+          } catch (fcmError) {
+            console.error('Error sending push notification:', fcmError);
+          }
+        } else {
+          console.log(`No FCM token for user ${assignedUser.email}`);
+        }
+      }
+    }
 
     console.log('Updated task:', JSON.stringify(updatedTask, null, 2));
 
