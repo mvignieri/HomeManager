@@ -37,6 +37,7 @@ export function useTasks(filter?: string) {
       return res.json();
     },
     enabled: !!currentHouse,
+    refetchInterval: 30000, // Refetch every 30 seconds for real-time sync
   });
 
   // Filter tasks based on options
