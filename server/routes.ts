@@ -742,7 +742,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/tasks/:id', async (req, res) => {
     try {
       const taskId = parseInt(req.params.id);
-      console.log('Updating task:', taskId, 'with data:', req.body);
+      console.log('Updating task:', taskId, 'with data:', JSON.stringify(req.body, null, 2));
 
       const task = await storage.getTask(taskId);
 
@@ -751,21 +751,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'Task not found' });
       }
 
-      console.log('Current task:', task);
+      console.log('Current task:', JSON.stringify(task, null, 2));
 
-      // Convert date strings to Date objects
+      // Convert date strings to Date objects for all date fields
       const updates = { ...req.body };
-      if (updates.dueDate && typeof updates.dueDate === 'string') {
-        updates.dueDate = new Date(updates.dueDate);
+
+      // List of date fields that might be in the update
+      const dateFields = ['dueDate', 'completedAt', 'createdAt'];
+
+      for (const field of dateFields) {
+        if (updates[field]) {
+          if (typeof updates[field] === 'string') {
+            console.log(`Converting ${field} from string to Date:`, updates[field]);
+            updates[field] = new Date(updates[field]);
+          } else if (!(updates[field] instanceof Date)) {
+            // If it's not a string and not a Date, log it and remove it
+            console.warn(`Unexpected type for ${field}:`, typeof updates[field], updates[field]);
+            delete updates[field];
+          }
+        }
       }
-      if (updates.completedAt && typeof updates.completedAt === 'string') {
-        updates.completedAt = new Date(updates.completedAt);
-      }
+
+      console.log('Updates after date conversion:', JSON.stringify(updates, null, 2));
 
       // Update task
       const updatedTask = await storage.updateTask(taskId, updates);
 
-      console.log('Updated task:', updatedTask);
+      console.log('Updated task:', JSON.stringify(updatedTask, null, 2));
 
       // Send WebSocket notification
       broadcastToHouse(updatedTask.houseId, {
