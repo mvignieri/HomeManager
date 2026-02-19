@@ -34,7 +34,8 @@ export default function NotificationBell({ userId, houseId }: NotificationBellPr
       return res.json();
     },
     enabled: !!userId,
-    refetchInterval: 30000, // Refetch every 30 seconds for real-time notifications
+    // Pusher handles real-time updates, fallback polling only once per 5 minutes
+    refetchInterval: 300000,
   });
 
   const markAsReadMutation = useMutation({

@@ -18,11 +18,12 @@ import { useAppContext } from "@/context/app-context";
 import CreateHouseModal from "@/components/create-house-modal";
 import PWAInstallPrompt from "@/components/pwa-install-prompt";
 import { useFCM } from "@/hooks/use-fcm";
+import { usePusher } from "@/hooks/use-pusher";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
 
 function App() {
-  const { user, loading, houses, refreshHouses, showCreateHouseModal, setShowCreateHouseModal } = useAppContext();
+  const { user, loading, houses, refreshHouses, showCreateHouseModal, setShowCreateHouseModal, currentHouse } = useAppContext();
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
 
@@ -66,6 +67,8 @@ function App() {
     refetchOnMount: 'always',
   });
 
+  // Initialize Pusher for real-time updates
+  usePusher(currentHouse?.id, dbUser?.id);
 
   // Handle login with Google
   const [isLoggingIn, setIsLoggingIn] = React.useState(false);

@@ -4,6 +4,7 @@ import { storage } from "../server/pg-storage.js";
 import { initializeFirebaseAdmin } from "../server/firebase-admin.js";
 import { sendInvitationEmail, testEmailConnection } from "../server/email.js";
 import { sendNotificationToUser } from "../server/firebase-admin.js";
+import { initializePusher, triggerHouseEvent, triggerUserEvent } from "../server/pusher.js";
 import {
   insertUserSchema,
   insertHouseSchema,
@@ -30,6 +31,16 @@ if (!firebaseInitialized) {
   firebaseInitialized = true;
   if (!firebaseAdmin) {
     console.warn("⚠ Firebase Admin not initialized - push notifications will not work");
+  }
+}
+
+// Initialize Pusher (once)
+let pusherInitialized = false;
+if (!pusherInitialized) {
+  const pusher = initializePusher();
+  pusherInitialized = true;
+  if (!pusher) {
+    console.warn("⚠ Pusher not initialized - real-time updates will not work");
   }
 }
 
@@ -597,6 +608,10 @@ app.post('/api/tasks', async (req, res) => {
   try {
     const taskData = insertTaskSchema.parse(req.body);
     const task = await storage.createTask(taskData);
+
+    // Trigger Pusher event for task creation
+    await triggerHouseEvent(task.houseId, 'task-created', { task });
+
     res.status(201).json(task);
   } catch (error) {
     console.error('Error creating task:', error);
@@ -663,6 +678,14 @@ app.patch('/api/tasks/:id', async (req, res) => {
           read: false,
         });
 
+        // Trigger Pusher event for notification
+        await triggerUserEvent(assignedUser.id, 'notification-created', {
+          notification: {
+            title: 'New Task Assigned',
+            message: `You have been assigned the task: ${updatedTask.title}`,
+          }
+        });
+
         // Send push notification via Firebase Cloud Messaging
         if (assignedUser.fcmToken) {
           try {
@@ -686,6 +709,9 @@ app.patch('/api/tasks/:id', async (req, res) => {
     }
 
     console.log('Updated task:', JSON.stringify(updatedTask, null, 2));
+
+    // Trigger Pusher event for task update
+    await triggerHouseEvent(updatedTask.houseId, 'task-updated', { task: updatedTask });
 
     res.json(updatedTask);
   } catch (error) {
@@ -786,7 +812,12 @@ app.delete('/api/tasks/:id', async (req, res) => {
       return res.status(404).json({ message: 'Task not found' });
     }
 
+    const houseId = task.houseId;
     await storage.deleteTask(taskId);
+
+    // Trigger Pusher event for task deletion
+    await triggerHouseEvent(houseId, 'task-deleted', { taskId });
+
     res.json({ success: true });
   } catch (error) {
     console.error('Error deleting task:', error);
