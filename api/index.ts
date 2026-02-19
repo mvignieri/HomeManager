@@ -611,17 +611,47 @@ app.post('/api/tasks', async (req, res) => {
 app.patch('/api/tasks/:id', async (req, res) => {
   try {
     const taskId = parseInt(req.params.id);
+    console.log('Updating task:', taskId, 'with data:', JSON.stringify(req.body, null, 2));
+
     const task = await storage.getTask(taskId);
 
     if (!task) {
+      console.log('Task not found:', taskId);
       return res.status(404).json({ message: 'Task not found' });
     }
 
-    const updatedTask = await storage.updateTask(taskId, req.body);
+    console.log('Current task:', JSON.stringify(task, null, 2));
+
+    // Convert date strings to Date objects for all date fields
+    const updates = { ...req.body };
+
+    // List of date fields that might be in the update
+    const dateFields = ['dueDate', 'completedAt', 'createdAt'];
+
+    for (const field of dateFields) {
+      if (updates[field]) {
+        if (typeof updates[field] === 'string') {
+          console.log(`Converting ${field} from string to Date:`, updates[field]);
+          updates[field] = new Date(updates[field]);
+        } else if (!(updates[field] instanceof Date)) {
+          // If it's not a string and not a Date, log it and remove it
+          console.warn(`Unexpected type for ${field}:`, typeof updates[field], updates[field]);
+          delete updates[field];
+        }
+      }
+    }
+
+    console.log('Updates after date conversion:', JSON.stringify(updates, null, 2));
+
+    const updatedTask = await storage.updateTask(taskId, updates);
+
+    console.log('Updated task:', JSON.stringify(updatedTask, null, 2));
+
     res.json(updatedTask);
   } catch (error) {
     console.error('Error updating task:', error);
-    res.status(500).json({ message: 'Internal server error' });
+    console.error('Error stack:', error instanceof Error ? error.stack : 'No stack trace');
+    res.status(500).json({ message: 'Internal server error', error: error instanceof Error ? error.message : 'Unknown error' });
   }
 });
 
