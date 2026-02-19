@@ -120,17 +120,38 @@ export default function SettingsPage() {
 
   const updateMemberMutation = useMutation({
     mutationFn: async ({ memberId, updates }: { memberId: number; updates: Partial<HouseMember> }) => {
-      const res = await fetch(`/api/houses/${currentHouse?.id}/members/${memberId}`, {
+      const requestingUserId = dbUser?.id;
+      const url = requestingUserId
+        ? `/api/houses/${currentHouse?.id}/members/${memberId}?requestingUserId=${requestingUserId}`
+        : `/api/houses/${currentHouse?.id}/members/${memberId}`;
+
+      const res = await fetch(url, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(updates),
       });
-      if (!res.ok) throw new Error('Failed to update member');
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || 'Failed to update member');
+      }
+
       return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: [`/api/houses/${currentHouse?.id}/members`] });
       setEditingMember(null);
+      toast({
+        title: 'Member Updated',
+        description: 'Member role has been successfully updated',
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Update Failed',
+        description: error.message,
+        variant: 'destructive',
+      });
     },
   });
 

@@ -614,10 +614,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.patch('/api/houses/:houseId/members/:memberId', async (req, res) => {
     try {
       const memberId = parseInt(req.params.memberId);
+      const houseId = parseInt(req.params.houseId);
+      const requestingUserId = req.query.requestingUserId ? parseInt(req.query.requestingUserId as string) : undefined;
+
+      // Get the current member data before updating
+      const memberToUpdate = await storage.getHouseMember(memberId);
+      if (!memberToUpdate) {
+        return res.status(404).json({ message: 'Member not found' });
+      }
+
+      // If trying to change role, verify permissions
+      if (req.body.role && req.body.role !== memberToUpdate.role && requestingUserId) {
+        const members = await storage.getHouseMembers(houseId);
+        const requestingMember = members.find(m => m.userId === requestingUserId);
+
+        if (!requestingMember) {
+          return res.status(403).json({ message: 'You are not a member of this house' });
+        }
+
+        // Only admin can change the role of another admin
+        if (memberToUpdate.role === 'admin' && requestingMember.role !== 'admin') {
+          return res.status(403).json({
+            message: 'Only admins can change the role of other admins'
+          });
+        }
+
+        // Admin cannot be changed to a different role by an owner
+        if (memberToUpdate.role === 'admin' && requestingMember.role === 'owner') {
+          return res.status(403).json({
+            message: 'Owners cannot change the role of admins'
+          });
+        }
+      }
+
       const member = await storage.updateHouseMember(memberId, req.body);
 
       if (!member) {
-        return res.status(404).json({ message: 'Member not found' });
+        return res.status(404).json({ message: 'Member not found after update' });
       }
 
       res.json(member);

@@ -8,6 +8,12 @@ import { Toaster } from "@/components/ui/toaster";
 import { AppProvider } from "@/context/app-context";
 import { registerServiceWorker, setupInstallPrompt } from "./lib/pwa";
 
+// Enable Eruda (mobile debugging console) with ?debug=true in URL
+const urlParams = new URLSearchParams(window.location.search);
+if (urlParams.get('debug') === 'true' || import.meta.env.DEV) {
+  import('eruda').then(eruda => eruda.default.init());
+}
+
 // Register Service Worker for PWA
 if (import.meta.env.PROD) {
   registerServiceWorker();
