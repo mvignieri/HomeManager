@@ -18,7 +18,7 @@ import {
 } from "../shared/schema.js";
 import { z } from "zod";
 import { sendInvitationEmail } from "./email.js";
-import { sendNotificationToUser } from "./firebase-admin.js";
+import { sendWebPush } from "./webpush.js";
 
 // Connected WebSocket clients by userId
 const clients: Map<number, WebSocket[]> = new Map();
@@ -178,11 +178,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      // Update FCM token
-      await storage.updateUser(userId, { fcmToken: token });
+      await storage.updateUser(userId, { pushSubscription: JSON.stringify(token) });
 
-      console.log(`FCM token saved for user ${user.email}`);
-      res.json({ success: true, message: 'FCM token saved' });
+      console.log(`Push subscription saved for user ${user.email}`);
+      res.json({ success: true, message: 'Push subscription saved' });
     } catch (error) {
       console.error('Error saving FCM token:', error);
       res.status(500).json({ message: 'Internal server error' });
@@ -409,23 +408,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           console.log(`Notification created for existing user: ${email}`);
 
-          // Send push notification if user has FCM token
-          if (invitedUser.fcmToken) {
-            try {
-              await sendNotificationToUser(
-                invitedUser.fcmToken,
-                'New House Invitation',
-                `${inviter.displayName || inviter.email} has invited you to join ${house.name}`,
-                {
-                  type: 'house_invitation',
-                  invitationId: invitation.id.toString(),
-                  token: invitation.token
-                }
-              );
-              console.log(`Push notification sent to user: ${email}`);
-            } catch (pushError) {
-              console.error('Failed to send push notification:', pushError);
-            }
+          // Send push notification via Web Push
+          if (invitedUser.pushSubscription) {
+            await sendWebPush(
+              invitedUser.pushSubscription,
+              'New House Invitation',
+              `${inviter.displayName || inviter.email} has invited you to join ${house.name}`,
+              { type: 'house_invitation', invitationId: invitation.id.toString(), token: invitation.token }
+            );
           }
         } catch (notifError) {
           console.error('Failed to create notification:', notifError);
@@ -858,25 +848,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           read: false,
         });
 
-        // Send push notification via Firebase Cloud Messaging
-        if (assignedUser.fcmToken) {
-          try {
-            await sendNotificationToUser(
-              assignedUser.fcmToken,
-              'New Task Assigned',
-              `You have been assigned the task: ${updatedTask.title}`,
-              {
-                taskId: updatedTask.id.toString(),
-                type: 'task_assigned',
-              }
-            );
-            console.log(`Push notification sent to ${assignedUser.email}`);
-          } catch (fcmError) {
-            console.error('Error sending push notification:', fcmError);
-            // Continue anyway - the in-app notification was created
-          }
-        } else {
-          console.log(`No FCM token for user ${assignedUser.email}`);
+        // Send push notification via Web Push
+        if (assignedUser.pushSubscription) {
+          await sendWebPush(
+            assignedUser.pushSubscription,
+            'New Task Assigned',
+            `You have been assigned the task: ${updatedTask.title}`,
+            { taskId: updatedTask.id.toString(), type: 'task_assigned' }
+          );
         }
       }
 
@@ -1061,21 +1040,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
           read: false,
         });
 
-        if (memberUser.fcmToken) {
-          try {
-            await sendNotificationToUser(
-              memberUser.fcmToken,
-              'Shopping List Updated',
-              notificationMessage,
-              {
-                type: 'shopping_list_updated',
-                houseId: houseId.toString(),
-                editorUserId: editorUserId.toString(),
-              }
-            );
-          } catch (pushError) {
-            console.error('Error sending shopping list push notification:', pushError);
-          }
+        // Send push notification via Web Push
+        if (memberUser.pushSubscription) {
+          await sendWebPush(
+            memberUser.pushSubscription,
+            'Shopping List Updated',
+            notificationMessage,
+            { type: 'shopping_list_updated', houseId: houseId.toString(), editorUserId: editorUserId.toString() }
+          );
         }
       }
 

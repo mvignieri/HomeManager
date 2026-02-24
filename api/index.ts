@@ -1,9 +1,8 @@
 import 'dotenv/config';
 import express, { type Request, Response, NextFunction } from "express";
 import { storage } from "../server/pg-storage.js";
-import { initializeFirebaseAdmin } from "../server/firebase-admin.js";
 import { sendInvitationEmail, testEmailConnection } from "../server/email.js";
-import { sendNotificationToUser } from "../server/firebase-admin.js";
+import { initializeWebPush, sendWebPush } from "../server/webpush.js";
 import { initializePusher, triggerHouseEvent, triggerUserEvent } from "../server/pusher.js";
 import {
   insertUserSchema,
@@ -25,15 +24,8 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Initialize Firebase Admin (once)
-let firebaseInitialized = false;
-if (!firebaseInitialized) {
-  const firebaseAdmin = initializeFirebaseAdmin();
-  firebaseInitialized = true;
-  if (!firebaseAdmin) {
-    console.warn("⚠ Firebase Admin not initialized - push notifications will not work");
-  }
-}
+// Initialize Web Push (once)
+initializeWebPush();
 
 // Initialize Pusher (once)
 let pusherInitialized = false;
@@ -119,13 +111,13 @@ app.get('/api/users', async (req, res) => {
   }
 });
 
-// Save FCM token for user
-app.post('/api/users/fcm-token', async (req, res) => {
+// Save Web Push subscription for user
+app.post('/api/users/push-subscription', async (req, res) => {
   try {
-    const { token, userId } = req.body;
+    const { subscription, userId } = req.body;
 
-    if (!token || !userId) {
-      return res.status(400).json({ message: 'Token and userId are required' });
+    if (!subscription || !userId) {
+      return res.status(400).json({ message: 'subscription and userId are required' });
     }
 
     const user = await storage.getUser(userId);
@@ -133,12 +125,12 @@ app.post('/api/users/fcm-token', async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    await storage.updateUser(userId, { fcmToken: token });
+    await storage.updateUser(userId, { pushSubscription: JSON.stringify(subscription) });
 
-    console.log(`FCM token saved for user ${user.email}`);
-    res.json({ success: true, message: 'FCM token saved' });
+    console.log(`Push subscription saved for user ${user.email}`);
+    res.json({ success: true, message: 'Push subscription saved' });
   } catch (error) {
-    console.error('Error saving FCM token:', error);
+    console.error('Error saving push subscription:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -360,23 +352,14 @@ app.post('/api/houses/:id/invitations', async (req, res) => {
           }
         });
 
-        // Send push notification if user has FCM token
-        if (invitedUser.fcmToken) {
-          try {
-            await sendNotificationToUser(
-              invitedUser.fcmToken,
-              'New House Invitation',
-              `${inviter.displayName || inviter.email} has invited you to join ${house.name}`,
-              {
-                type: 'house_invitation',
-                invitationId: invitation.id.toString(),
-                token: invitation.token
-              }
-            );
-            console.log(`Push notification sent to user: ${email}`);
-          } catch (pushError) {
-            console.error('Failed to send push notification:', pushError);
-          }
+        // Send push notification via Web Push
+        if (invitedUser.pushSubscription) {
+          await sendWebPush(
+            invitedUser.pushSubscription,
+            'New House Invitation',
+            `${inviter.displayName || inviter.email} has invited you to join ${house.name}`,
+            { type: 'house_invitation', invitationId: invitation.id.toString(), token: invitation.token }
+          );
         }
       } catch (notifError) {
         console.error('Failed to create notification:', notifError);
@@ -641,22 +624,14 @@ app.post('/api/tasks', async (req, res) => {
           }
         });
 
-        // Send push notification via FCM
-        if (assignedUser.fcmToken) {
-          try {
-            await sendNotificationToUser(
-              assignedUser.fcmToken,
-              'New Task Assigned',
-              `You have been assigned the task: ${task.title}`,
-              {
-                taskId: task.id.toString(),
-                type: 'task_assigned',
-              }
-            );
-            console.log(`Push notification sent to ${assignedUser.email}`);
-          } catch (fcmError) {
-            console.error('Error sending push notification:', fcmError);
-          }
+        // Send push notification via Web Push
+        if (assignedUser.pushSubscription) {
+          await sendWebPush(
+            assignedUser.pushSubscription,
+            'New Task Assigned',
+            `You have been assigned the task: ${task.title}`,
+            { taskId: task.id.toString(), type: 'task_assigned' }
+          );
         }
       }
     }
@@ -738,24 +713,14 @@ app.patch('/api/tasks/:id', async (req, res) => {
           }
         });
 
-        // Send push notification via Firebase Cloud Messaging
-        if (assignedUser.fcmToken) {
-          try {
-            await sendNotificationToUser(
-              assignedUser.fcmToken,
-              'New Task Assigned',
-              `You have been assigned the task: ${updatedTask.title}`,
-              {
-                taskId: updatedTask.id.toString(),
-                type: 'task_assigned',
-              }
-            );
-            console.log(`Push notification sent to ${assignedUser.email}`);
-          } catch (fcmError) {
-            console.error('Error sending push notification:', fcmError);
-          }
-        } else {
-          console.log(`No FCM token for user ${assignedUser.email}`);
+        // Send push notification via Web Push
+        if (assignedUser.pushSubscription) {
+          await sendWebPush(
+            assignedUser.pushSubscription,
+            'New Task Assigned',
+            `You have been assigned the task: ${updatedTask.title}`,
+            { taskId: updatedTask.id.toString(), type: 'task_assigned' }
+          );
         }
       }
     }
@@ -826,24 +791,14 @@ app.patch('/api/tasks/:id/assign', async (req, res) => {
         read: false,
       });
 
-      // Send push notification via Firebase Cloud Messaging
-      if (assignedUser.fcmToken) {
-        try {
-          await sendNotificationToUser(
-            assignedUser.fcmToken,
-            'New Task Assigned',
-            `You have been assigned the task: ${updatedTask.title}`,
-            {
-              taskId: updatedTask.id.toString(),
-              type: 'task_assigned',
-            }
-          );
-          console.log(`Push notification sent to ${assignedUser.email}`);
-        } catch (fcmError) {
-          console.error('Error sending push notification:', fcmError);
-        }
-      } else {
-        console.log(`No FCM token for user ${assignedUser.email}`);
+      // Send push notification via Web Push
+      if (assignedUser.pushSubscription) {
+        await sendWebPush(
+          assignedUser.pushSubscription,
+          'New Task Assigned',
+          `You have been assigned the task: ${updatedTask.title}`,
+          { taskId: updatedTask.id.toString(), type: 'task_assigned' }
+        );
       }
     }
 
@@ -1016,21 +971,14 @@ app.post('/api/shopping-items/commit', async (req, res) => {
         }
       });
 
-      if (memberUser.fcmToken) {
-        try {
-          await sendNotificationToUser(
-            memberUser.fcmToken,
-            'Shopping List Updated',
-            notificationMessage,
-            {
-              type: 'shopping_list_updated',
-              houseId: houseId.toString(),
-              editorUserId: editorUserId.toString(),
-            }
-          );
-        } catch (pushError) {
-          console.error('Error sending shopping list push notification:', pushError);
-        }
+      // Send push notification via Web Push
+      if (memberUser.pushSubscription) {
+        await sendWebPush(
+          memberUser.pushSubscription,
+          'Shopping List Updated',
+          notificationMessage,
+          { type: 'shopping_list_updated', houseId: houseId.toString(), editorUserId: editorUserId.toString() }
+        );
       }
     }
 

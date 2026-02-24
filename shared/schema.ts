@@ -9,7 +9,7 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   displayName: text("display_name"),
   photoURL: text("photo_url"),
-  fcmToken: text("fcm_token"),
+  pushSubscription: text("push_subscription"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

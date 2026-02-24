@@ -1,4 +1,21 @@
-const CACHE_NAME = 'hometask-v1';
+const CACHE_NAME = 'hometask-v2';
+
+// Handle Web Push notifications (app closed or in background)
+self.addEventListener('push', (event) => {
+  if (!event.data) return;
+
+  const payload = event.data.json();
+  const title = payload.title || 'HomeManager';
+  const options = {
+    body: payload.body || 'You have a new notification',
+    icon: '/icon-192.png',
+    badge: '/icon-192.png',
+    data: payload.data || {},
+    tag: payload.data?.tag || 'default',
+  };
+
+  event.waitUntil(self.registration.showNotification(title, options));
+});
 const urlsToCache = [
   '/',
   '/index.html',
@@ -61,27 +78,6 @@ self.addEventListener('fetch', (event) => {
         // If fetch fails, try cache
         return caches.match(event.request);
       })
-  );
-});
-
-// Push notification event
-self.addEventListener('push', (event) => {
-  console.log('Push notification received:', event);
-
-  const data = event.data ? event.data.json() : {};
-  const title = data.title || 'HomeTask Notification';
-  const options = {
-    body: data.body || 'You have a new notification',
-    icon: '/icon-192.png',
-    badge: '/icon-192.png',
-    data: data.data || {},
-    tag: data.tag || 'default',
-    requireInteraction: data.requireInteraction || false,
-    actions: data.actions || []
-  };
-
-  event.waitUntil(
-    self.registration.showNotification(title, options)
   );
 });
 

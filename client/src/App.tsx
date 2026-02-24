@@ -17,7 +17,7 @@ import { signInWithGoogle, signOut } from "@/lib/firebase";
 import { useAppContext } from "@/context/app-context";
 import CreateHouseModal from "@/components/create-house-modal";
 import PWAInstallPrompt from "@/components/pwa-install-prompt";
-import { useFCM } from "@/hooks/use-fcm";
+import { useWebPush } from "@/hooks/use-web-push";
 import { usePusher } from "@/hooks/use-pusher";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
@@ -27,8 +27,8 @@ function App() {
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
 
-  // Initialize Firebase Cloud Messaging
-  useFCM();
+  // Initialize Web Push subscription
+  useWebPush();
 
   // Get current database user
   // Use retry logic to handle race condition where user might not be created yet after login
