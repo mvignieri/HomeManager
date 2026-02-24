@@ -601,11 +601,10 @@ app.post('/api/tasks', async (req, res) => {
     const taskData = insertTaskSchema.parse(req.body);
     const task = await storage.createTask(taskData);
 
-    // If task is assigned to someone, create notification
     if (task.assignedToId) {
+      // Task assigned to a specific user → notify only them
       const assignedUser = await storage.getUser(task.assignedToId);
       if (assignedUser) {
-        // Create in-app notification
         await storage.createNotification({
           userId: assignedUser.id,
           houseId: task.houseId,
@@ -615,22 +614,53 @@ app.post('/api/tasks', async (req, res) => {
           data: { taskId: task.id },
           read: false,
         });
-
-        // Trigger Pusher event for notification
         await triggerUserEvent(assignedUser.id, 'notification-created', {
           notification: {
             title: 'New Task Assigned',
             message: `You have been assigned the task: ${task.title}`,
           }
         });
-
-        // Send push notification via Web Push
         if (assignedUser.pushSubscription) {
           await sendWebPush(
             assignedUser.pushSubscription,
             'New Task Assigned',
             `You have been assigned the task: ${task.title}`,
             { taskId: task.id.toString(), type: 'task_assigned' }
+          );
+        }
+      }
+    } else {
+      // Task not assigned → notify all house members except the creator
+      const creator = await storage.getUser(task.createdById);
+      const creatorName = creator?.displayName || creator?.email || 'Someone';
+      const members = await storage.getHouseMembers(task.houseId);
+      const recipients = members.filter(m => m.userId !== task.createdById);
+
+      for (const member of recipients) {
+        const memberUser = await storage.getUser(member.userId);
+        if (!memberUser) continue;
+
+        await storage.createNotification({
+          userId: memberUser.id,
+          houseId: task.houseId,
+          title: 'New Task Available',
+          message: `${creatorName} created a new task: ${task.title}`,
+          type: 'task_created',
+          data: { taskId: task.id },
+          read: false,
+        });
+        await triggerUserEvent(memberUser.id, 'notification-created', {
+          notification: {
+            title: 'New Task Available',
+            message: `${creatorName} created a new task: ${task.title}`,
+          }
+        });
+        if (memberUser.pushSubscription) {
+          await sendWebPush(
+            memberUser.pushSubscription,
+            'New Task Available',
+            `${creatorName} created a new task: ${task.title}`,
+            { taskId: task.id.toString(), type: 'task_created' }
           );
         }
       }
