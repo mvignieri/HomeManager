@@ -17,7 +17,7 @@ import { signInWithGoogle, signOut } from "@/lib/firebase";
 import { useAppContext } from "@/context/app-context";
 import CreateHouseModal from "@/components/create-house-modal";
 import PWAInstallPrompt from "@/components/pwa-install-prompt";
-import { useWebPush } from "@/hooks/use-web-push";
+import { useWebPush } from "@/hooks/use-web-push.tsx";
 import { usePusher } from "@/hooks/use-pusher";
 import { useQuery } from "@tanstack/react-query";
 import React from "react";
