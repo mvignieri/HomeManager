@@ -5,7 +5,10 @@ let initialized = false;
 export function initializeWebPush(): boolean {
   const publicKey = process.env.VAPID_PUBLIC_KEY;
   const privateKey = process.env.VAPID_PRIVATE_KEY;
-  const contact = process.env.VAPID_CONTACT_EMAIL || 'mailto:admin@homemanager.app';
+  const rawContact = process.env.VAPID_CONTACT_EMAIL || 'admin@homemanager.app';
+  const contact = rawContact.startsWith('mailto:') || rawContact.startsWith('https://')
+    ? rawContact
+    : `mailto:${rawContact}`;
 
   if (!publicKey || !privateKey) {
     console.warn('⚠ VAPID keys not configured - web push notifications disabled');
