@@ -11,10 +11,10 @@ export interface GoogleCalendarEvent {
   calendarColor?: string;
 }
 
-const GCAL_TOKEN_KEY        = 'gcal_token';
-const GCAL_EXPIRES_KEY      = 'gcal_token_expires';
-const GCAL_EVER_CONNECTED   = 'gcal_ever_connected';
-const GCAL_SCOPE            = 'https://www.googleapis.com/auth/calendar.readonly';
+const GCAL_TOKEN_KEY      = 'gcal_token';
+const GCAL_EXPIRES_KEY    = 'gcal_token_expires';
+const GCAL_EVER_CONNECTED = 'gcal_ever_connected';
+const GCAL_SCOPE          = 'https://www.googleapis.com/auth/calendar.readonly';
 
 // ----- localStorage helpers ------------------------------------------------ //
 
@@ -32,9 +32,7 @@ function getStoredToken(): string | null {
 
 export function storeGcalToken(token: string) {
   localStorage.setItem(GCAL_TOKEN_KEY, token);
-  // Google access tokens last 1 h; treat as expired slightly early.
   localStorage.setItem(GCAL_EXPIRES_KEY, String(Date.now() + 55 * 60 * 1000));
-  // Remember that this user has connected at least once.
   localStorage.setItem(GCAL_EVER_CONNECTED, 'true');
 }
 
@@ -63,22 +61,30 @@ declare global {
   }
 }
 
-export function useGoogleCalendar(userEmail?: string) {
+/**
+ * Optional callback provided by the caller (AppContext) that performs a
+ * Firebase reauthentication popup and returns the new Google access token.
+ * This is more reliable than GIS on iOS PWA because Firebase's popup
+ * mechanism already works on iOS (the user successfully uses it to log in).
+ */
+export type ReauthFn = () => Promise<string | null>;
+
+export function useGoogleCalendar(userEmail?: string, reauthFn?: ReauthFn) {
   const [token, setToken] = useState<string | null>(() => getStoredToken());
   const [isConnecting, setIsConnecting] = useState(false);
-  // If the token is gone but the user previously connected, show reconnect immediately.
+  // Show reconnect immediately if token is gone but user previously connected.
   const [needsReconnect, setNeedsReconnect] = useState<boolean>(
     () => !getStoredToken() && !!localStorage.getItem(GCAL_EVER_CONNECTED),
   );
   const [scriptLoaded, setScriptLoaded] = useState(false);
-
   const connectingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
   const clearConnectingTimer = () => {
     if (connectingTimerRef.current) clearTimeout(connectingTimerRef.current);
     connectingTimerRef.current = null;
   };
 
-  // Load GIS script once
+  // Load GIS script (used only for browsers where it works; iOS falls back to reauthFn)
   useEffect(() => {
     if (document.getElementById('gis-script')) { setScriptLoaded(true); return; }
     const script = document.createElement('script');
@@ -90,7 +96,8 @@ export function useGoogleCalendar(userEmail?: string) {
     document.head.appendChild(script);
   }, []);
 
-  const requestToken = useCallback((
+  // GIS-based token request (desktop fallback)
+  const requestTokenViaGIS = useCallback((
     prompt: string,
     onSuccess: (t: string) => void,
     onFail?: () => void,
@@ -119,56 +126,81 @@ export function useGoogleCalendar(userEmail?: string) {
     client.requestAccessToken();
   }, [userEmail]);
 
-  // On mount / when GIS loads: attempt silent re-auth if no token and user has connected before.
-  // If GIS callback doesn't fire within 6 s (e.g. iOS blocks the silent iframe), fall back
-  // to showing the reconnect button.
+  // On mount / when GIS loads: attempt silent re-auth.
+  // On iOS, the GIS iframe is blocked by ITP so we rely on needsReconnect being
+  // set immediately (via gcal_ever_connected) and the user tapping the button.
   useEffect(() => {
     if (!scriptLoaded || token || !userEmail) return;
-    if (!localStorage.getItem(GCAL_EVER_CONNECTED)) return; // user never connected
+    if (!localStorage.getItem(GCAL_EVER_CONNECTED)) return;
 
     let callbackFired = false;
-
     const silentId = setTimeout(() => {
-      requestToken(
+      requestTokenViaGIS(
         'none',
         () => { callbackFired = true; },
         () => { callbackFired = true; setNeedsReconnect(true); },
       );
     }, 500);
 
-    // Safety net: if GIS never calls the callback (iOS ITP blocks the iframe),
-    // fall back to the reconnect button after 6 s.
+    // Safety net: if GIS never calls back (iOS ITP blocks the iframe),
+    // fall through to the reconnect button after 5 s.
     const safetyId = setTimeout(() => {
       if (!callbackFired) setNeedsReconnect(true);
-    }, 6000);
+    }, 5000);
 
     return () => { clearTimeout(silentId); clearTimeout(safetyId); };
   }, [scriptLoaded, userEmail]); // eslint-disable-line react-hooks/exhaustive-deps
 
+  // ── reconnect ────────────────────────────────────────────────────────────── //
   const reconnect = useCallback(() => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId) { console.error('VITE_GOOGLE_CLIENT_ID is not set'); return; }
+    setIsConnecting(true);
+    setNeedsReconnect(false);
 
+    // Prefer Firebase reauthentication if provided — this is the mechanism that
+    // works on iOS PWA (same popup path used for the initial login).
+    if (reauthFn) {
+      connectingTimerRef.current = setTimeout(() => {
+        setIsConnecting(false);
+        setNeedsReconnect(true);
+      }, 60_000);
+
+      reauthFn()
+        .then((newToken) => {
+          clearConnectingTimer();
+          if (newToken) {
+            storeGcalToken(newToken);
+            setToken(newToken);
+            setNeedsReconnect(false);
+          } else {
+            setNeedsReconnect(true);
+          }
+        })
+        .catch(() => {
+          clearConnectingTimer();
+          setNeedsReconnect(true);
+        })
+        .finally(() => setIsConnecting(false));
+      return;
+    }
+
+    // Fallback: GIS popup (works on desktop Chrome/Firefox)
     if (!scriptLoaded || !window.google?.accounts?.oauth2) {
+      setIsConnecting(false);
       setNeedsReconnect(true);
       return;
     }
 
-    setIsConnecting(true);
-    setNeedsReconnect(false);
-
-    // If the GIS popup is blocked or dismissed, reset after 30 s.
     connectingTimerRef.current = setTimeout(() => {
       setIsConnecting(false);
       setNeedsReconnect(true);
     }, 30_000);
 
-    requestToken(
+    requestTokenViaGIS(
       'select_account',
       () => { clearConnectingTimer(); },
       () => { clearConnectingTimer(); setIsConnecting(false); setNeedsReconnect(true); },
     );
-  }, [requestToken, scriptLoaded]);
+  }, [reauthFn, requestTokenViaGIS, scriptLoaded]);
 
   const disconnect = useCallback(() => {
     clearGcalToken();
@@ -180,12 +212,9 @@ export function useGoogleCalendar(userEmail?: string) {
   const handleExpired = useCallback(() => {
     clearGcalToken();
     setToken(null);
-    if (userEmail && scriptLoaded) {
-      requestToken('none', () => {}, () => setNeedsReconnect(true));
-    } else {
-      setNeedsReconnect(true);
-    }
-  }, [userEmail, scriptLoaded, requestToken]);
+    // Show reconnect immediately — the user will tap the Navbar button.
+    setNeedsReconnect(true);
+  }, []);
 
   // Fetch events from ALL user calendars
   const { data: events = [], isLoading } = useQuery<GoogleCalendarEvent[]>({

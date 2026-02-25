@@ -1,5 +1,5 @@
-import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
-import { User } from 'firebase/auth';
+import React, { createContext, useContext, useState, useEffect, useCallback, ReactNode } from 'react';
+import { User, GoogleAuthProvider, reauthenticateWithPopup } from 'firebase/auth';
 import { auth, REQUIRED_AUTH_VERSION, AUTH_VERSION_KEY } from '@/lib/firebase';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
@@ -61,9 +61,31 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [showCreateHouseModal, setShowCreateHouseModal] = useState(false);
   const [location, setLocation] = useLocation();
 
+  // Firebase-based reauth: same popup mechanism used for the initial login,
+  // which is the only thing that works reliably on iOS PWA.
+  const firebaseReauthFn = useCallback(async (): Promise<string | null> => {
+    if (!auth.currentUser) return null;
+    const provider = new GoogleAuthProvider();
+    provider.addScope('https://www.googleapis.com/auth/calendar.readonly');
+    if (user?.email) provider.setCustomParameters({ login_hint: user.email });
+    try {
+      const result = await reauthenticateWithPopup(auth.currentUser, provider);
+      const credential = GoogleAuthProvider.credentialFromResult(result);
+      return credential?.accessToken ?? null;
+    } catch (err: any) {
+      // User cancelled or popup was closed — not an error worth reporting
+      if (
+        err.code === 'auth/cancelled-popup-request' ||
+        err.code === 'auth/popup-closed-by-user'
+      ) return null;
+      console.error('🔴 AppContext: Calendar reauth failed:', err);
+      return null;
+    }
+  }, [user?.email]);
+
   // Global Google Calendar connection — one instance for the whole app so
   // reconnect state is visible from any page (e.g. Navbar).
-  const googleCalendar = useGoogleCalendar(user?.email ?? undefined);
+  const googleCalendar = useGoogleCalendar(user?.email ?? undefined, firebaseReauthFn);
 
   // Fetch houses for the current user
   const { data: houses = [], refetch: refreshHouses } = useQuery<House[]>({
