@@ -40,6 +40,11 @@ export const houseMembers = pgTable("house_members", {
     canDeleteTasks: false,
     canManageDevices: false,
     canManageUsers: false,
+    canViewTasks: true,
+    canViewCalendar: true,
+    canViewShopping: true,
+    canViewDevices: true,
+    canViewAnalytics: true,
   }),
   joinedAt: timestamp("joined_at").defaultNow().notNull(),
 });

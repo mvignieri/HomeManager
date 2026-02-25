@@ -1,4 +1,4 @@
-import { Route, Switch, useLocation } from "wouter";
+import { Route, Switch, useLocation, Redirect } from "wouter";
 import NotFound from "@/pages/not-found";
 import HomePage from "@/pages/home";
 import CalendarPage from "@/pages/calendar";
@@ -15,6 +15,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { signInWithGoogle, signOut } from "@/lib/firebase";
 import { useAppContext } from "@/context/app-context";
+import { useSectionPermissions } from "@/hooks/use-section-permissions";
 import CreateHouseModal from "@/components/create-house-modal";
 import PWAInstallPrompt from "@/components/pwa-install-prompt";
 import { useWebPush } from "@/hooks/use-web-push.tsx";
@@ -24,6 +25,7 @@ import React from "react";
 
 function App() {
   const { user, loading, houses, refreshHouses, showCreateHouseModal, setShowCreateHouseModal, currentHouse } = useAppContext();
+  const sectionAccess = useSectionPermissions();
   const { toast } = useToast();
   const [location, setLocation] = useLocation();
 
@@ -366,11 +368,21 @@ function App() {
     <>
       <Switch>
         <Route path="/" component={HomePage} />
-        <Route path="/calendar" component={CalendarPage} />
-        <Route path="/smart-home" component={SmartHomePage} />
-        <Route path="/analytics" component={AnalyticsPage} />
-        <Route path="/tasks" component={TasksPage} />
-        <Route path="/shopping-list" component={ShoppingListPage} />
+        <Route path="/tasks">
+          {sectionAccess.canViewTasks ? <TasksPage /> : <Redirect to="/" />}
+        </Route>
+        <Route path="/calendar">
+          {sectionAccess.canViewCalendar ? <CalendarPage /> : <Redirect to="/" />}
+        </Route>
+        <Route path="/shopping-list">
+          {sectionAccess.canViewShopping ? <ShoppingListPage /> : <Redirect to="/" />}
+        </Route>
+        <Route path="/smart-home">
+          {sectionAccess.canViewDevices ? <SmartHomePage /> : <Redirect to="/" />}
+        </Route>
+        <Route path="/analytics">
+          {sectionAccess.canViewAnalytics ? <AnalyticsPage /> : <Redirect to="/" />}
+        </Route>
         <Route path="/settings" component={SettingsPage} />
         <Route path="/profile" component={ProfilePage} />
         <Route path="/accept-invite" component={AcceptInvitePage} />

@@ -1,6 +1,15 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "firebase/auth";
 
+const GCAL_TOKEN_KEY = 'gcal_token';
+const GCAL_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
+
+// Bump this string whenever you add new OAuth scopes to the Google provider.
+// Any session created with an older version will be force-logged-out on next
+// app load so the user re-authenticates and grants the new scopes.
+export const REQUIRED_AUTH_VERSION = 'v2-gcal';
+export const AUTH_VERSION_KEY = 'authVersion';
+
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY || "demo-key",
   authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID || "demo-project"}.firebaseapp.com`,
@@ -23,9 +32,10 @@ export const auth = getAuth(app);
 
 // Configure Google Auth provider
 const provider = new GoogleAuthProvider();
-provider.setCustomParameters({
-  prompt: 'select_account'
-});
+provider.setCustomParameters({ prompt: 'select_account' });
+// Request Calendar read-only scope at login time so the token is
+// immediately available without a second auth popup.
+provider.addScope(GCAL_SCOPE);
 
 // Sign in with Google using popup
 export const signInWithGoogle = async () => {
@@ -33,6 +43,20 @@ export const signInWithGoogle = async () => {
     console.warn('🔵 Firebase: Starting Google sign-in with popup');
     const result = await signInWithPopup(auth, provider);
     console.warn('🟢 Firebase: Sign-in successful:', result.user.email);
+
+    // Extract the Google OAuth access token (includes calendar.readonly scope)
+    // and store it so useGoogleCalendar can use it immediately without a
+    // second auth popup.
+    const credential = GoogleAuthProvider.credentialFromResult(result);
+    if (credential?.accessToken) {
+      sessionStorage.setItem(GCAL_TOKEN_KEY, credential.accessToken);
+      console.warn('🟢 Firebase: Google Calendar token stored');
+    }
+
+    // Mark that this session was created with the current auth version,
+    // so the version check in AppContext won't force a re-login.
+    localStorage.setItem(AUTH_VERSION_KEY, REQUIRED_AUTH_VERSION);
+
     return result.user;
   } catch (error: any) {
     console.error("🔴 Firebase: Error signing in with Google:", error.code, error.message);

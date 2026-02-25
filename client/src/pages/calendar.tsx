@@ -50,7 +50,7 @@ function formatEventTime(event: { start: { date?: string; dateTime?: string }; e
 }
 
 export default function CalendarPage() {
-  const { currentHouse } = useAppContext();
+  const { currentHouse, user } = useAppContext();
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
   const [currentView, setCurrentView] = useState<'calendar' | 'day'>('calendar');
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -58,7 +58,7 @@ export default function CalendarPage() {
   const [defaultDateForModal, setDefaultDateForModal] = useState<string | undefined>(undefined);
 
   const { tasks, getTasksByDay, completeTask } = useTasks();
-  const { events, isLoading: eventsLoading, isConnected, isConnecting, connect } = useGoogleCalendar();
+  const { events, isLoading: eventsLoading, isConnected, isConnecting, needsReconnect, reconnect } = useGoogleCalendar(user?.email ?? undefined);
 
   const { data: houseMembers = [] } = useQuery<User[]>({
     queryKey: ['/api/houses', currentHouse?.id, 'members'],
@@ -171,18 +171,22 @@ export default function CalendarPage() {
                 <Wifi className="h-3 w-3" />
                 Google Calendar
               </Badge>
-            ) : (
+            ) : isConnecting ? (
+              <Badge variant="outline" className="text-gray-400 flex items-center gap-1 text-xs">
+                <CalendarIcon className="h-3 w-3 animate-pulse" />
+                Connecting…
+              </Badge>
+            ) : needsReconnect ? (
               <Button
                 size="sm"
                 variant="outline"
-                className="text-xs flex items-center gap-1"
-                onClick={connect}
-                disabled={isConnecting}
+                className="text-xs flex items-center gap-1 text-amber-600 border-amber-300"
+                onClick={reconnect}
               >
                 <CalendarIcon className="h-3 w-3" />
-                {isConnecting ? 'Connecting…' : 'Connect Google Calendar'}
+                Reconnect Calendar
               </Button>
-            )}
+            ) : null}
             <Button size="sm" variant="outline" className="flex items-center gap-1" onClick={() => openAddTask(currentView === 'day' ? selectedDate : undefined)}>
               <Plus className="h-4 w-4" />
               Add Task

@@ -23,7 +23,7 @@ import {
 } from '@/components/ui/dialog';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useAppContext } from '@/context/app-context';
-import { Settings as SettingsIcon, Users, Shield, UserPlus, Home, Mail, Trash2, AlertTriangle } from 'lucide-react';
+import { Settings as SettingsIcon, Users, Shield, UserPlus, Home, Mail, Trash2, AlertTriangle, Lock } from 'lucide-react';
 import type { HouseMember, User } from '@shared/schema';
 import Navbar from '@/components/layout/navbar';
 import Sidebar from '@/components/layout/sidebar';
@@ -785,6 +785,46 @@ export default function SettingsPage() {
                                   />
                                 </div>
                               </div>
+
+                              {/* Section Visibility */}
+                              <div className="space-y-3 pt-2 border-t">
+                                <Label>Section Visibility</Label>
+
+                                {member.role === 'owner' || member.role === 'admin' ? (
+                                  <div className="flex items-center gap-2 rounded-md bg-gray-50 px-3 py-2 text-sm text-gray-500">
+                                    <Lock className="h-3.5 w-3.5 flex-shrink-0" />
+                                    <span>Owners and admins always have full access to all sections</span>
+                                  </div>
+                                ) : (
+                                  <>
+                                    {[
+                                      { key: 'canViewTasks',     label: 'Tasks' },
+                                      { key: 'canViewCalendar',  label: 'Calendar' },
+                                      { key: 'canViewShopping',  label: 'Shopping' },
+                                      { key: 'canViewDevices',   label: 'Devices' },
+                                      { key: 'canViewAnalytics', label: 'Analytics' },
+                                    ].map(({ key, label }) => (
+                                      <div key={key} className="flex items-center justify-between">
+                                        <Label htmlFor={`${member.id}-${key}`} className="text-sm font-normal">
+                                          {label}
+                                        </Label>
+                                        <Switch
+                                          id={`${member.id}-${key}`}
+                                          checked={permissions[key] !== false}
+                                          onCheckedChange={(checked) => {
+                                            updateMemberMutation.mutate({
+                                              memberId: member.id,
+                                              updates: {
+                                                permissions: { ...permissions, [key]: checked },
+                                              },
+                                            });
+                                          }}
+                                        />
+                                      </div>
+                                    ))}
+                                  </>
+                                )}
+                              </div>
                             </div>
 
                             <DialogFooter>
@@ -813,6 +853,26 @@ export default function SettingsPage() {
                       )}
                       {permissions.canManageUsers && (
                         <Badge variant="outline" className="text-xs">Manage Users</Badge>
+                      )}
+                      {/* Restricted sections – only shown for members with at least one section blocked */}
+                      {member.role === 'member' && (
+                        <>
+                          {permissions.canViewTasks === false && (
+                            <Badge variant="outline" className="text-xs text-red-500 border-red-200">No Tasks</Badge>
+                          )}
+                          {permissions.canViewCalendar === false && (
+                            <Badge variant="outline" className="text-xs text-red-500 border-red-200">No Calendar</Badge>
+                          )}
+                          {permissions.canViewShopping === false && (
+                            <Badge variant="outline" className="text-xs text-red-500 border-red-200">No Shopping</Badge>
+                          )}
+                          {permissions.canViewDevices === false && (
+                            <Badge variant="outline" className="text-xs text-red-500 border-red-200">No Devices</Badge>
+                          )}
+                          {permissions.canViewAnalytics === false && (
+                            <Badge variant="outline" className="text-xs text-red-500 border-red-200">No Analytics</Badge>
+                          )}
+                        </>
                       )}
                     </div>
                   </CardContent>

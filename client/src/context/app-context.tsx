@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import { User } from 'firebase/auth';
-import { auth } from '@/lib/firebase';
+import { auth, REQUIRED_AUTH_VERSION, AUTH_VERSION_KEY } from '@/lib/firebase';
 import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Task, House, User as UserModel } from '@shared/schema';
@@ -73,6 +73,19 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
       clearTimeout(timeoutId);
 
       if (authUser) {
+        // Force re-login if the session was created before the current auth
+        // version (e.g. a new OAuth scope was added). The user will be sent
+        // back to the login screen and will grant the new permissions on
+        // their next sign-in.
+        const storedVersion = localStorage.getItem(AUTH_VERSION_KEY);
+        if (storedVersion !== REQUIRED_AUTH_VERSION) {
+          console.warn('🔄 AppContext: Auth version mismatch – forcing re-login for new OAuth scopes');
+          await auth.signOut();
+          clearTimeout(timeoutId);
+          setLoading(false);
+          return;
+        }
+
         // User is signed in
         console.warn('🔵 AppContext: User signed in, checking database');
         setUser(authUser);
