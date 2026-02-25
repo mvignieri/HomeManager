@@ -1,7 +1,7 @@
 import { initializeApp } from "firebase/app";
 import { getAuth, signInWithPopup, signInWithRedirect, getRedirectResult, GoogleAuthProvider } from "firebase/auth";
+import { storeGcalToken } from '@/hooks/use-google-calendar';
 
-const GCAL_TOKEN_KEY = 'gcal_token';
 const GCAL_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
 
 // Bump this string whenever you add new OAuth scopes to the Google provider.
@@ -54,7 +54,7 @@ export const signInWithGoogle = async () => {
     // and store it so useGoogleCalendar can use it immediately.
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (credential?.accessToken) {
-      sessionStorage.setItem(GCAL_TOKEN_KEY, credential.accessToken);
+      storeGcalToken(credential.accessToken);
       console.warn('🟢 Firebase: Google Calendar token stored');
     }
 

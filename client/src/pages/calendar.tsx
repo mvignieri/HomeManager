@@ -1,5 +1,5 @@
 import React, { useState, useMemo } from 'react';
-import { format, addDays, isSameDay, isToday, parseISO, startOfDay } from 'date-fns';
+import { format, addDays, isSameDay, isToday, parseISO, startOfDay, startOfMonth, endOfMonth } from 'date-fns';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -133,6 +133,18 @@ export default function CalendarPage() {
     return d && isSameDay(d, selectedDate);
   });
 
+  const monthTaskCount = useMemo(() => {
+    const monthStart = startOfMonth(calendarMonth);
+    const monthEnd = endOfMonth(calendarMonth);
+
+    return tasks.filter((task) => {
+      if (!task.dueDate) return false;
+      const start = startOfDay(new Date(task.dueDate));
+      const end = task.endDate ? startOfDay(new Date(task.endDate)) : start;
+      return start <= monthEnd && end >= monthStart;
+    }).length;
+  }, [tasks, calendarMonth]);
+
   // ── Modal helpers ──────────────────────────────────────────────────────────
   const openAddTask = (date?: Date) => {
     setEditingTask(undefined);
@@ -141,37 +153,65 @@ export default function CalendarPage() {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="relative flex min-h-screen flex-col">
       <Navbar title="Calendar" />
       <Sidebar />
 
       {/* Header */}
-      <header className="bg-white border-b border-gray-200 px-3 py-3 shadow-sm sm:px-4 md:ml-20 md:px-5 lg:ml-64 lg:px-6">
-        <div className="flex items-center justify-between gap-2">
-          <p className="text-sm font-medium text-gray-600">
-            {format(calendarMonth, 'MMMM yyyy')}
-          </p>
-          <div className="flex items-center gap-2">
-            {isConnected ? (
-              <Badge variant="outline" className="text-green-600 border-green-300 flex items-center gap-1 text-xs">
-                <Wifi className="h-3 w-3" />
-                Google Calendar
-              </Badge>
-            ) : isConnecting ? (
-              <Badge variant="outline" className="text-gray-400 flex items-center gap-1 text-xs">
-                <CalendarIcon className="h-3 w-3 animate-pulse" />
-                Connecting…
-              </Badge>
-            ) : needsReconnect ? (
-              <Button size="sm" variant="outline" className="text-xs flex items-center gap-1 text-amber-600 border-amber-300" onClick={reconnect}>
-                <CalendarIcon className="h-3 w-3" />
-                Reconnect Calendar
+      <header className="px-3 pb-3 pt-4 sm:px-4 md:ml-20 md:px-5 lg:ml-64 lg:px-6">
+        <div className="glass-surface rounded-3xl border p-3.5 sm:p-4 md:p-5">
+          <div className="flex flex-col gap-3 sm:gap-3.5 md:flex-row md:items-start md:justify-between">
+            <div>
+              <p className="inline-flex items-center gap-1 rounded-full border border-cyan-100 bg-cyan-50 px-2.5 py-1 text-[11px] font-semibold text-cyan-700">
+                <CalendarIcon className="h-3.5 w-3.5" />
+                Agenda mensile
+              </p>
+              <h2 className="mt-2 text-lg font-bold text-slate-800 sm:text-xl md:text-2xl">
+                {format(calendarMonth, 'MMMM yyyy')}
+              </h2>
+              <p className="text-xs text-slate-500 sm:text-sm">
+                Vista rapida di task ed eventi sul giorno selezionato.
+              </p>
+            </div>
+
+            <div className="flex flex-wrap items-center gap-2 sm:justify-end">
+              {isConnected ? (
+                <Badge variant="outline" className="border-emerald-300 bg-emerald-50 text-emerald-700">
+                  <Wifi className="mr-1 h-3.5 w-3.5" />
+                  Google connesso
+                </Badge>
+              ) : isConnecting ? (
+                <Badge variant="outline" className="border-slate-300 bg-slate-50 text-slate-500">
+                  <CalendarIcon className="mr-1 h-3.5 w-3.5 animate-pulse" />
+                  Connessione...
+                </Badge>
+              ) : needsReconnect ? (
+                <Button size="sm" variant="outline" className="h-9 border-amber-300 bg-amber-50 text-amber-700 hover:bg-amber-100" onClick={reconnect}>
+                  <CalendarIcon className="mr-1.5 h-3.5 w-3.5" />
+                  Ricollega Google
+                </Button>
+              ) : null}
+
+              <Button size="sm" className="h-9 w-full rounded-xl bg-primary px-4 text-white sm:w-auto" onClick={() => openAddTask(selectedDate)}>
+                <Plus className="mr-1.5 h-4 w-4" />
+                Nuovo Task
               </Button>
-            ) : null}
-            <Button size="sm" variant="outline" className="flex items-center gap-1" onClick={() => openAddTask(selectedDate)}>
-              <Plus className="h-4 w-4" />
-              Add Task
-            </Button>
+            </div>
+          </div>
+
+          <div className="mt-3.5 grid grid-cols-2 gap-2 sm:mt-4 sm:gap-2.5 md:grid-cols-3">
+            <div className="rounded-2xl border border-slate-200 bg-white/70 p-3">
+              <p className="text-[11px] text-slate-500 sm:text-xs">Task nel mese</p>
+              <p className="text-lg font-bold text-slate-800 sm:text-xl">{monthTaskCount}</p>
+            </div>
+            <div className="rounded-2xl border border-amber-200 bg-amber-50/70 p-3">
+              <p className="text-[11px] text-amber-700 sm:text-xs">Task nel giorno</p>
+              <p className="text-lg font-bold text-amber-800 sm:text-xl">{tasksForDay.length}</p>
+            </div>
+            <div className="col-span-2 rounded-2xl border border-sky-200 bg-sky-50/70 p-3 md:col-span-1">
+              <p className="text-[11px] text-sky-700 sm:text-xs">Eventi nel giorno</p>
+              <p className="text-lg font-bold text-sky-800 sm:text-xl">{isConnected ? eventsForDay.length : 0}</p>
+            </div>
           </div>
         </div>
       </header>
@@ -202,7 +242,7 @@ export default function CalendarPage() {
         .has-task-dot.has-event-dot::before { left: calc(50% - 5px); }
       `}</style>
 
-      <main className="flex-grow overflow-y-auto px-3 py-4 pb-24 space-y-4 sm:px-4 md:ml-20 md:px-5 md:py-5 md:pb-6 lg:ml-64 lg:px-6">
+      <main className="flex-grow space-y-4 overflow-y-auto px-3 py-1 pb-24 sm:px-4 md:ml-20 md:px-5 md:py-2 md:pb-6 lg:ml-64 lg:px-6">
 
         {/* ── Calendar – always visible ──────────────────────────────────── */}
         <CalendarComponent
@@ -211,7 +251,7 @@ export default function CalendarPage() {
           onSelect={handleDateSelect}
           month={calendarMonth}
           onMonthChange={setCalendarMonth}
-          className="rounded-md border shadow-sm bg-white w-full"
+          className="glass-surface w-full rounded-2xl border p-1 shadow-none"
           modifiers={modifiers}
           modifiersClassNames={modifiersClassNames}
         />
@@ -231,7 +271,7 @@ export default function CalendarPage() {
         </div>
 
         {/* ── Selected day detail ────────────────────────────────────────── */}
-        <Card>
+        <Card className="glass-surface rounded-2xl border shadow-none">
           <CardContent className="p-4 space-y-4">
 
             {/* Day navigation */}
@@ -265,7 +305,7 @@ export default function CalendarPage() {
                     {eventsForDay.map((ev) => (
                       <div
                         key={ev.id}
-                        className="flex items-start gap-2 rounded-lg p-2.5 text-sm"
+                        className="flex items-start gap-2 rounded-xl border border-white/70 bg-white/70 p-2.5 text-sm"
                         style={{ backgroundColor: ev.calendarColor ? `${ev.calendarColor}18` : '#eff6ff', borderLeft: `3px solid ${ev.calendarColor ?? '#3b82f6'}` }}
                       >
                         <div className="flex-grow min-w-0">
@@ -306,7 +346,7 @@ export default function CalendarPage() {
               ) : (
                 <div className="space-y-1.5">
                   {tasksForDay.map((task) => (
-                    <div key={task.id} className="flex items-center gap-3 rounded-lg border bg-white p-2.5">
+                    <div key={task.id} className="flex items-center gap-3 rounded-xl border border-white/70 bg-white/75 p-2.5">
                       <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${getStatusColor(task.status)}`} />
                       <div className="flex-grow min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{task.title}</p>

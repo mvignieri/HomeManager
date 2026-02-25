@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 
 export interface GoogleCalendarEvent {
@@ -12,7 +12,36 @@ export interface GoogleCalendarEvent {
 }
 
 const GCAL_TOKEN_KEY = 'gcal_token';
+const GCAL_EXPIRES_KEY = 'gcal_token_expires';
 const GCAL_SCOPE = 'https://www.googleapis.com/auth/calendar.readonly';
+
+// ----- localStorage helpers with expiry ------------------------------------ //
+
+function getStoredToken(): string | null {
+  const token = localStorage.getItem(GCAL_TOKEN_KEY);
+  if (!token) return null;
+  const expires = localStorage.getItem(GCAL_EXPIRES_KEY);
+  if (expires && Date.now() > parseInt(expires, 10)) {
+    localStorage.removeItem(GCAL_TOKEN_KEY);
+    localStorage.removeItem(GCAL_EXPIRES_KEY);
+    return null;
+  }
+  return token;
+}
+
+// Exported so firebase.ts can use the same storage helpers.
+export function storeGcalToken(token: string) {
+  localStorage.setItem(GCAL_TOKEN_KEY, token);
+  // Google access tokens last 1 h; refresh a bit early to avoid edge cases.
+  localStorage.setItem(GCAL_EXPIRES_KEY, String(Date.now() + 55 * 60 * 1000));
+}
+
+function clearGcalToken() {
+  localStorage.removeItem(GCAL_TOKEN_KEY);
+  localStorage.removeItem(GCAL_EXPIRES_KEY);
+}
+
+// --------------------------------------------------------------------------- //
 
 declare global {
   interface Window {
@@ -33,10 +62,20 @@ declare global {
 }
 
 export function useGoogleCalendar(userEmail?: string) {
-  const [token, setToken] = useState<string | null>(() => sessionStorage.getItem(GCAL_TOKEN_KEY));
+  const [token, setToken] = useState<string | null>(() => getStoredToken());
   const [isConnecting, setIsConnecting] = useState(false);
   const [needsReconnect, setNeedsReconnect] = useState(false);
   const [scriptLoaded, setScriptLoaded] = useState(false);
+
+  // Safety timer: if GIS callback never fires (e.g. script not ready), reset state.
+  const connectingTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const clearConnectingTimer = () => {
+    if (connectingTimerRef.current) {
+      clearTimeout(connectingTimerRef.current);
+      connectingTimerRef.current = null;
+    }
+  };
 
   // Load GIS script once
   useEffect(() => {
@@ -53,9 +92,16 @@ export function useGoogleCalendar(userEmail?: string) {
     document.head.appendChild(script);
   }, []);
 
-  const requestToken = useCallback((prompt: string, onSuccess: (t: string) => void, onFail?: () => void) => {
+  const requestToken = useCallback((
+    prompt: string,
+    onSuccess: (t: string) => void,
+    onFail?: () => void,
+  ) => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    if (!clientId || !window.google?.accounts?.oauth2) return;
+    if (!clientId || !window.google?.accounts?.oauth2) {
+      onFail?.();
+      return;
+    }
 
     const client = window.google.accounts.oauth2.initTokenClient({
       client_id: clientId,
@@ -63,9 +109,10 @@ export function useGoogleCalendar(userEmail?: string) {
       hint: userEmail,
       prompt,
       callback: (response) => {
+        clearConnectingTimer();
         setIsConnecting(false);
         if (response.access_token) {
-          sessionStorage.setItem(GCAL_TOKEN_KEY, response.access_token);
+          storeGcalToken(response.access_token);
           setToken(response.access_token);
           setNeedsReconnect(false);
           onSuccess(response.access_token);
@@ -75,32 +122,52 @@ export function useGoogleCalendar(userEmail?: string) {
       },
     });
     client.requestAccessToken();
-  }, [userEmail, scriptLoaded]);
+  }, [userEmail]);
 
-  // On mount: silent re-auth if no token (covers page reloads)
+  // On mount / when GIS loads: silent re-auth if no token
   useEffect(() => {
     if (!scriptLoaded || token || !userEmail) return;
     const id = setTimeout(() => {
       requestToken('none', () => {}, () => setNeedsReconnect(true));
     }, 500);
     return () => clearTimeout(id);
-  }, [scriptLoaded, userEmail]);
+  }, [scriptLoaded, userEmail]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const reconnect = useCallback(() => {
     const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
     if (!clientId) { console.error('VITE_GOOGLE_CLIENT_ID is not set'); return; }
+
+    // Guard: if GIS isn't loaded yet, don't show a fake spinner.
+    if (!scriptLoaded || !window.google?.accounts?.oauth2) {
+      setNeedsReconnect(true);
+      return;
+    }
+
     setIsConnecting(true);
-    requestToken('select_account', () => {}, () => setNeedsReconnect(true));
-  }, [requestToken]);
+    setNeedsReconnect(false);
+
+    // Safety timeout: if the GIS callback never fires (popup blocked, etc.),
+    // fall back to showing the reconnect button after 30 s.
+    connectingTimerRef.current = setTimeout(() => {
+      setIsConnecting(false);
+      setNeedsReconnect(true);
+    }, 30_000);
+
+    requestToken(
+      'select_account',
+      () => { clearConnectingTimer(); },
+      () => { clearConnectingTimer(); setIsConnecting(false); setNeedsReconnect(true); },
+    );
+  }, [requestToken, scriptLoaded]);
 
   const disconnect = useCallback(() => {
-    sessionStorage.removeItem(GCAL_TOKEN_KEY);
+    clearGcalToken();
     setToken(null);
     setNeedsReconnect(false);
   }, []);
 
   const handleExpired = useCallback(() => {
-    sessionStorage.removeItem(GCAL_TOKEN_KEY);
+    clearGcalToken();
     setToken(null);
     if (userEmail && scriptLoaded) {
       requestToken('none', () => {}, () => setNeedsReconnect(true));
