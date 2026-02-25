@@ -9,7 +9,6 @@ export const users = pgTable("users", {
   email: text("email").notNull(),
   displayName: text("display_name"),
   photoURL: text("photo_url"),
-  pushSubscription: text("push_subscription"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -190,3 +189,14 @@ export type HouseInvitation = typeof houseInvitations.$inferSelect;
 
 export const InvitationStatus = z.enum(["pending", "accepted", "expired"]);
 export type InvitationStatus = z.infer<typeof InvitationStatus>;
+
+// Push subscription model (one row per user/device pair)
+export const pushSubscriptions = pgTable("push_subscriptions", {
+  id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id, { onDelete: 'cascade' }),
+  endpoint: text("endpoint").notNull(),
+  subscription: text("subscription").notNull(), // full PushSubscription JSON
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export type PushSubscriptionRecord = typeof pushSubscriptions.$inferSelect;

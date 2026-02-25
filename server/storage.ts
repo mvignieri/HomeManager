@@ -7,6 +7,7 @@ import {
   devices, type Device, type InsertDevice,
   notifications, type Notification, type InsertNotification,
   houseInvitations, type HouseInvitation, type InsertHouseInvitation,
+  type PushSubscriptionRecord,
   TaskStatus, TaskPriority, DeviceStatus, DeviceType, HouseRole
 } from "../shared/schema.js";
 
@@ -76,6 +77,11 @@ export interface IStorage {
   createInvitation(invitation: InsertHouseInvitation): Promise<HouseInvitation>;
   updateInvitation(id: number, updates: Partial<HouseInvitation>): Promise<HouseInvitation | undefined>;
   deleteInvitation(id: number): Promise<void>;
+
+  // Push subscription methods
+  getPushSubscriptionsByUser(userId: number): Promise<PushSubscriptionRecord[]>;
+  upsertPushSubscription(userId: number, endpoint: string, subscription: string): Promise<PushSubscriptionRecord>;
+  deletePushSubscriptionByEndpoint(endpoint: string): Promise<void>;
 }
 
 export class MemStorage implements IStorage {
@@ -87,6 +93,7 @@ export class MemStorage implements IStorage {
   private devices: Map<number, Device>;
   private notifications: Map<number, Notification>;
   private invitations: Map<number, HouseInvitation>;
+  private pushSubscriptions: Map<number, PushSubscriptionRecord>;
 
   private userIdCounter: number;
   private houseIdCounter: number;
@@ -96,6 +103,7 @@ export class MemStorage implements IStorage {
   private deviceIdCounter: number;
   private notificationIdCounter: number;
   private invitationIdCounter: number;
+  private pushSubscriptionIdCounter: number;
 
   constructor() {
     this.users = new Map();
@@ -106,6 +114,7 @@ export class MemStorage implements IStorage {
     this.devices = new Map();
     this.notifications = new Map();
     this.invitations = new Map();
+    this.pushSubscriptions = new Map();
 
     this.userIdCounter = 1;
     this.houseIdCounter = 1;
@@ -115,6 +124,7 @@ export class MemStorage implements IStorage {
     this.deviceIdCounter = 1;
     this.notificationIdCounter = 1;
     this.invitationIdCounter = 1;
+    this.pushSubscriptionIdCounter = 1;
   }
 
   // User methods
@@ -141,7 +151,7 @@ export class MemStorage implements IStorage {
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userIdCounter++;
     const now = new Date();
-    const user: User = { displayName: null, photoURL: null, pushSubscription: null, ...insertUser, id, createdAt: now };
+    const user: User = { displayName: null, photoURL: null, ...insertUser, id, createdAt: now };
     this.users.set(id, user);
     return user;
   }
@@ -495,6 +505,31 @@ export class MemStorage implements IStorage {
 
   async deleteInvitation(id: number): Promise<void> {
     this.invitations.delete(id);
+  }
+
+  // Push subscription methods
+  async getPushSubscriptionsByUser(userId: number): Promise<PushSubscriptionRecord[]> {
+    return Array.from(this.pushSubscriptions.values()).filter(s => s.userId === userId);
+  }
+
+  async upsertPushSubscription(userId: number, endpoint: string, subscription: string): Promise<PushSubscriptionRecord> {
+    const existing = Array.from(this.pushSubscriptions.values()).find(s => s.endpoint === endpoint);
+    if (existing) {
+      const updated = { ...existing, subscription };
+      this.pushSubscriptions.set(existing.id, updated);
+      return updated;
+    }
+    const id = this.pushSubscriptionIdCounter++;
+    const record: PushSubscriptionRecord = { id, userId, endpoint, subscription, createdAt: new Date() };
+    this.pushSubscriptions.set(id, record);
+    return record;
+  }
+
+  async deletePushSubscriptionByEndpoint(endpoint: string): Promise<void> {
+    const existing = Array.from(this.pushSubscriptions.values()).find(s => s.endpoint === endpoint);
+    if (existing) {
+      this.pushSubscriptions.delete(existing.id);
+    }
   }
 }
 

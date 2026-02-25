@@ -27,6 +27,17 @@ app.use(express.urlencoded({ extended: false }));
 // Initialize Web Push (once)
 initializeWebPush();
 
+// Helper: send push to all subscriptions for a user, auto-cleaning stale ones
+async function notifyUser(userId: number, title: string, body: string, data?: Record<string, string>) {
+  const subs = await storage.getPushSubscriptionsByUser(userId);
+  for (const sub of subs) {
+    const result = await sendWebPush(sub.subscription, title, body, data);
+    if (result.shouldDelete) {
+      await storage.deletePushSubscriptionByEndpoint(sub.endpoint);
+    }
+  }
+}
+
 // Initialize Pusher (once)
 let pusherInitialized = false;
 if (!pusherInitialized) {
@@ -125,12 +136,27 @@ app.post('/api/users/push-subscription', async (req, res) => {
       return res.status(404).json({ message: 'User not found' });
     }
 
-    await storage.updateUser(userId, { pushSubscription: JSON.stringify(subscription) });
+    await storage.upsertPushSubscription(userId, subscription.endpoint, JSON.stringify(subscription));
 
     console.log(`Push subscription saved for user ${user.email}`);
     res.json({ success: true, message: 'Push subscription saved' });
   } catch (error) {
     console.error('Error saving push subscription:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+// Delete Web Push subscription by endpoint (called on logout)
+app.delete('/api/users/push-subscription', async (req, res) => {
+  try {
+    const { endpoint } = req.body;
+    if (!endpoint) {
+      return res.status(400).json({ message: 'endpoint is required' });
+    }
+    await storage.deletePushSubscriptionByEndpoint(endpoint);
+    res.json({ success: true });
+  } catch (error) {
+    console.error('Error deleting push subscription:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
@@ -352,15 +378,7 @@ app.post('/api/houses/:id/invitations', async (req, res) => {
           }
         });
 
-        // Send push notification via Web Push
-        if (invitedUser.pushSubscription) {
-          await sendWebPush(
-            invitedUser.pushSubscription,
-            'New House Invitation',
-            `${inviter.displayName || inviter.email} has invited you to join ${house.name}`,
-            { type: 'house_invitation', invitationId: invitation.id.toString(), token: invitation.token }
-          );
-        }
+        await notifyUser(invitedUser.id, 'New House Invitation', `${inviter.displayName || inviter.email} has invited you to join ${house.name}`, { type: 'house_invitation', invitationId: invitation.id.toString(), token: invitation.token });
       } catch (notifError) {
         console.error('Failed to create notification:', notifError);
       }
@@ -620,14 +638,7 @@ app.post('/api/tasks', async (req, res) => {
             message: `You have been assigned the task: ${task.title}`,
           }
         });
-        if (assignedUser.pushSubscription) {
-          await sendWebPush(
-            assignedUser.pushSubscription,
-            'New Task Assigned',
-            `You have been assigned the task: ${task.title}`,
-            { taskId: task.id.toString(), type: 'task_assigned' }
-          );
-        }
+        await notifyUser(assignedUser.id, 'New Task Assigned', `You have been assigned the task: ${task.title}`, { taskId: task.id.toString(), type: 'task_assigned' });
       }
     } else {
       // Task not assigned → notify all house members except the creator
@@ -655,14 +666,7 @@ app.post('/api/tasks', async (req, res) => {
             message: `${creatorName} created a new task: ${task.title}`,
           }
         });
-        if (memberUser.pushSubscription) {
-          await sendWebPush(
-            memberUser.pushSubscription,
-            'New Task Available',
-            `${creatorName} created a new task: ${task.title}`,
-            { taskId: task.id.toString(), type: 'task_created' }
-          );
-        }
+        await notifyUser(memberUser.id, 'New Task Available', `${creatorName} created a new task: ${task.title}`, { taskId: task.id.toString(), type: 'task_created' });
       }
     }
 
@@ -743,15 +747,7 @@ app.patch('/api/tasks/:id', async (req, res) => {
           }
         });
 
-        // Send push notification via Web Push
-        if (assignedUser.pushSubscription) {
-          await sendWebPush(
-            assignedUser.pushSubscription,
-            'New Task Assigned',
-            `You have been assigned the task: ${updatedTask.title}`,
-            { taskId: updatedTask.id.toString(), type: 'task_assigned' }
-          );
-        }
+        await notifyUser(assignedUser.id, 'New Task Assigned', `You have been assigned the task: ${updatedTask.title}`, { taskId: updatedTask.id.toString(), type: 'task_assigned' });
       }
     }
 
@@ -821,15 +817,7 @@ app.patch('/api/tasks/:id/assign', async (req, res) => {
         read: false,
       });
 
-      // Send push notification via Web Push
-      if (assignedUser.pushSubscription) {
-        await sendWebPush(
-          assignedUser.pushSubscription,
-          'New Task Assigned',
-          `You have been assigned the task: ${updatedTask.title}`,
-          { taskId: updatedTask.id.toString(), type: 'task_assigned' }
-        );
-      }
+      await notifyUser(assignedUser.id, 'New Task Assigned', `You have been assigned the task: ${updatedTask.title}`, { taskId: updatedTask.id.toString(), type: 'task_assigned' });
     }
 
     res.json(updatedTask);
@@ -1001,15 +989,7 @@ app.post('/api/shopping-items/commit', async (req, res) => {
         }
       });
 
-      // Send push notification via Web Push
-      if (memberUser.pushSubscription) {
-        await sendWebPush(
-          memberUser.pushSubscription,
-          'Shopping List Updated',
-          notificationMessage,
-          { type: 'shopping_list_updated', houseId: houseId.toString(), editorUserId: editorUserId.toString() }
-        );
-      }
+      await notifyUser(memberUser.id, 'Shopping List Updated', notificationMessage, { type: 'shopping_list_updated', houseId: houseId.toString(), editorUserId: editorUserId.toString() });
     }
 
     // Trigger Pusher event for shopping list commit

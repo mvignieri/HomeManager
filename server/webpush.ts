@@ -26,10 +26,10 @@ export async function sendWebPush(
   title: string,
   body: string,
   data?: Record<string, string>
-): Promise<boolean> {
+): Promise<{ success: boolean; shouldDelete: boolean }> {
   if (!initialized) {
     console.warn('Web Push not initialized - skipping notification');
-    return false;
+    return { success: false, shouldDelete: false };
   }
 
   try {
@@ -37,12 +37,13 @@ export async function sendWebPush(
     const payload = JSON.stringify({ title, body, data: data || {} });
     await webpush.sendNotification(subscription, payload);
     console.log(`📱 Web Push sent: ${title}`);
-    return true;
+    return { success: true, shouldDelete: false };
   } catch (error: any) {
     console.error('Error sending web push:', error);
     if (error.statusCode === 410 || error.statusCode === 404) {
-      console.log('Push subscription is no longer valid - should be removed from DB');
+      console.log('Push subscription expired - will remove from DB');
+      return { success: false, shouldDelete: true };
     }
-    return false;
+    return { success: false, shouldDelete: false };
   }
 }

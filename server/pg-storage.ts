@@ -9,6 +9,7 @@ import {
   devices, type Device, type InsertDevice,
   notifications, type Notification, type InsertNotification,
   houseInvitations, type HouseInvitation, type InsertHouseInvitation,
+  pushSubscriptions, type PushSubscriptionRecord,
 } from '../shared/schema.js';
 import type { IStorage } from './storage.js';
 
@@ -337,6 +338,37 @@ export class PostgresStorage implements IStorage {
 
     // Finally delete the house
     await db.delete(houses).where(eq(houses.id, id));
+  }
+
+  // Push subscription methods
+  async getPushSubscriptionsByUser(userId: number): Promise<PushSubscriptionRecord[]> {
+    return db.select().from(pushSubscriptions).where(eq(pushSubscriptions.userId, userId));
+  }
+
+  async upsertPushSubscription(userId: number, endpoint: string, subscription: string): Promise<PushSubscriptionRecord> {
+    const existing = await db
+      .select()
+      .from(pushSubscriptions)
+      .where(eq(pushSubscriptions.endpoint, endpoint));
+
+    if (existing[0]) {
+      const result = await db
+        .update(pushSubscriptions)
+        .set({ subscription })
+        .where(eq(pushSubscriptions.endpoint, endpoint))
+        .returning();
+      return result[0];
+    }
+
+    const result = await db
+      .insert(pushSubscriptions)
+      .values({ userId, endpoint, subscription })
+      .returning();
+    return result[0];
+  }
+
+  async deletePushSubscriptionByEndpoint(endpoint: string): Promise<void> {
+    await db.delete(pushSubscriptions).where(eq(pushSubscriptions.endpoint, endpoint));
   }
 }
 

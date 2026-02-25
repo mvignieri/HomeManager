@@ -20,6 +20,17 @@ import { z } from "zod";
 import { sendInvitationEmail } from "./email.js";
 import { sendWebPush } from "./webpush.js";
 
+// Helper: send push to all subscriptions for a user, auto-cleaning stale ones
+async function notifyUser(userId: number, title: string, body: string, data?: Record<string, string>) {
+  const subs = await storage.getPushSubscriptionsByUser(userId);
+  for (const sub of subs) {
+    const result = await sendWebPush(sub.subscription, title, body, data);
+    if (result.shouldDelete) {
+      await storage.deletePushSubscriptionByEndpoint(sub.endpoint);
+    }
+  }
+}
+
 // Connected WebSocket clients by userId
 const clients: Map<number, WebSocket[]> = new Map();
 
@@ -163,27 +174,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Save FCM token for user
-  app.post('/api/users/fcm-token', async (req, res) => {
+  // Save Web Push subscription for user
+  app.post('/api/users/push-subscription', async (req, res) => {
     try {
-      const { token, userId } = req.body;
+      const { subscription, userId } = req.body;
 
-      if (!token || !userId) {
-        return res.status(400).json({ message: 'Token and userId are required' });
+      if (!subscription || !userId) {
+        return res.status(400).json({ message: 'subscription and userId are required' });
       }
 
-      // Update user's FCM token in database
       const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ message: 'User not found' });
       }
 
-      await storage.updateUser(userId, { pushSubscription: JSON.stringify(token) });
+      await storage.upsertPushSubscription(userId, subscription.endpoint, JSON.stringify(subscription));
 
       console.log(`Push subscription saved for user ${user.email}`);
       res.json({ success: true, message: 'Push subscription saved' });
     } catch (error) {
-      console.error('Error saving FCM token:', error);
+      console.error('Error saving push subscription:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Delete Web Push subscription by endpoint (called on logout)
+  app.delete('/api/users/push-subscription', async (req, res) => {
+    try {
+      const { endpoint } = req.body;
+      if (!endpoint) {
+        return res.status(400).json({ message: 'endpoint is required' });
+      }
+      await storage.deletePushSubscriptionByEndpoint(endpoint);
+      res.json({ success: true });
+    } catch (error) {
+      console.error('Error deleting push subscription:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
@@ -408,15 +433,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
           console.log(`Notification created for existing user: ${email}`);
 
-          // Send push notification via Web Push
-          if (invitedUser.pushSubscription) {
-            await sendWebPush(
-              invitedUser.pushSubscription,
-              'New House Invitation',
-              `${inviter.displayName || inviter.email} has invited you to join ${house.name}`,
-              { type: 'house_invitation', invitationId: invitation.id.toString(), token: invitation.token }
-            );
-          }
+          await notifyUser(invitedUser.id, 'New House Invitation', `${inviter.displayName || inviter.email} has invited you to join ${house.name}`, { type: 'house_invitation', invitationId: invitation.id.toString(), token: invitation.token });
         } catch (notifError) {
           console.error('Failed to create notification:', notifError);
         }
@@ -848,15 +865,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           read: false,
         });
 
-        // Send push notification via Web Push
-        if (assignedUser.pushSubscription) {
-          await sendWebPush(
-            assignedUser.pushSubscription,
-            'New Task Assigned',
-            `You have been assigned the task: ${updatedTask.title}`,
-            { taskId: updatedTask.id.toString(), type: 'task_assigned' }
-          );
-        }
+        await notifyUser(assignedUser.id, 'New Task Assigned', `You have been assigned the task: ${updatedTask.title}`, { taskId: updatedTask.id.toString(), type: 'task_assigned' });
       }
 
       // Send WebSocket notification
@@ -1040,15 +1049,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
           read: false,
         });
 
-        // Send push notification via Web Push
-        if (memberUser.pushSubscription) {
-          await sendWebPush(
-            memberUser.pushSubscription,
-            'Shopping List Updated',
-            notificationMessage,
-            { type: 'shopping_list_updated', houseId: houseId.toString(), editorUserId: editorUserId.toString() }
-          );
-        }
+        await notifyUser(memberUser.id, 'Shopping List Updated', notificationMessage, { type: 'shopping_list_updated', houseId: houseId.toString(), editorUserId: editorUserId.toString() });
       }
 
       broadcastToHouse(houseId, {

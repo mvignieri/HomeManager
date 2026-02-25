@@ -28,7 +28,7 @@ function App() {
   const [location, setLocation] = useLocation();
 
   // Initialize Web Push subscription
-  useWebPush();
+  const { cleanup: cleanupPushSubscription } = useWebPush();
 
   // Get current database user
   // Use retry logic to handle race condition where user might not be created yet after login
@@ -104,6 +104,7 @@ function App() {
   const handleLogout = async () => {
     try {
       console.warn('🔵 App: Logging out user');
+      await cleanupPushSubscription();
       await signOut();
       console.warn('🟢 App: User logged out successfully');
       toast({

@@ -26,6 +26,27 @@ export function useWebPush() {
   const [dbUserId, setDbUserId] = useState<number | null>(null);
   const toastShownRef = useRef(false);
 
+  // Unsubscribe this device and delete subscription from server (call before logout)
+  const cleanup = useCallback(async () => {
+    if (!('serviceWorker' in navigator) || !('PushManager' in window)) return;
+    try {
+      const registration = await navigator.serviceWorker.ready;
+      const subscription = await registration.pushManager.getSubscription();
+      if (subscription) {
+        const endpoint = subscription.endpoint;
+        await subscription.unsubscribe();
+        await fetch('/api/users/push-subscription', {
+          method: 'DELETE',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ endpoint }),
+        });
+        console.log('✅ Push subscription removed on logout');
+      }
+    } catch (error) {
+      console.error('Error cleaning up push subscription:', error);
+    }
+  }, []);
+
   // Fetch database user ID
   useEffect(() => {
     if (!user) {
@@ -105,4 +126,6 @@ export function useWebPush() {
       subscribe(dbUserId);
     }
   }, [user, dbUserId, subscribe, toast]);
+
+  return { cleanup };
 }
