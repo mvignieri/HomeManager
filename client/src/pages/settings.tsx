@@ -602,19 +602,19 @@ export default function SettingsPage() {
               return (
                 <Card key={member.id} className="border">
                   <CardContent className="p-4">
-                    <div className="flex items-start justify-between">
-                      <div className="flex items-center gap-3">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                      <div className="flex min-w-0 items-center gap-3">
                         <img
                           src={userInfo?.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(userInfo?.displayName || 'User')}`}
                           alt={userInfo?.displayName || 'User'}
-                          className="w-10 h-10 rounded-full"
+                          className="h-10 w-10 rounded-full"
                         />
-                        <div>
-                          <h4 className="font-medium">{userInfo?.displayName || 'Unknown User'}</h4>
-                          <p className="text-sm text-gray-500">{userInfo?.email}</p>
+                        <div className="min-w-0">
+                          <h4 className="truncate font-medium">{userInfo?.displayName || 'Unknown User'}</h4>
+                          <p className="truncate text-sm text-gray-500">{userInfo?.email}</p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-2">
+                      <div className="flex flex-wrap items-center justify-end gap-2 sm:justify-start">
                         {getRoleBadge(member.role)}
                         {member.userId !== dbUser?.id && (
                           <>

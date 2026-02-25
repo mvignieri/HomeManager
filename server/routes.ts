@@ -692,7 +692,21 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      const removedUserId = memberToRemove.userId;
+      const houseId = parseInt(req.params.houseId);
+
       await storage.removeHouseMember(memberId);
+
+      // Unassign all tasks in this house that were assigned to the removed user
+      // and are still in 'assigned' or 'in_progress' status
+      const houseTasks = await storage.getTasksByHouse(houseId);
+      const tasksToUnassign = houseTasks.filter(
+        (t) => t.assignedToId === removedUserId && (t.status === 'assigned' || t.status === 'in_progress')
+      );
+      for (const task of tasksToUnassign) {
+        await storage.updateTask(task.id, { assignedToId: null, status: 'created' });
+      }
+
       res.json({ message: 'Member removed successfully' });
     } catch (error) {
       console.error('Error removing house member:', error);
