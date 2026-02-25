@@ -29,6 +29,7 @@ import {
   Timer,
   CheckCircle2,
   Sparkles,
+  GripVertical,
 } from 'lucide-react';
 import { useTasks } from '@/hooks/use-tasks';
 import { useAppContext } from '@/context/app-context';
@@ -108,9 +109,20 @@ interface TaskCardProps {
   isDragging?: boolean;
   draggable?: boolean;
   isOverlay?: boolean;
+  isMobile?: boolean;
 }
 
-function TaskCard({ task, users, onEdit, onDelete, onQuickStatusChange, isDragging, draggable = true, isOverlay = false }: TaskCardProps) {
+function TaskCard({
+  task,
+  users,
+  onEdit,
+  onDelete,
+  onQuickStatusChange,
+  isDragging,
+  draggable = true,
+  isOverlay = false,
+  isMobile = false,
+}: TaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging: isDraggingFromHook } = useDraggable({
     id: task.id.toString(),
     data: { task },
@@ -138,14 +150,10 @@ function TaskCard({ task, users, onEdit, onDelete, onQuickStatusChange, isDraggi
       ref={setNodeRef}
       style={style}
       className={`glass-surface interactive-lift mb-3 rounded-2xl border p-0 ${
-        draggable ? 'cursor-grab active:cursor-grabbing' : ''
-      } ${
         isDraggingFromHook && !isOverlay ? 'opacity-0' : ''
       } ${
         isDragging || isOverlay ? 'shadow-xl ring-1 ring-primary/20' : ''
       }`}
-      {...(draggable ? listeners : {})}
-      {...(draggable ? attributes : {})}
     >
       <CardContent className="p-4">
         <div className="space-y-3">
@@ -172,24 +180,39 @@ function TaskCard({ task, users, onEdit, onDelete, onQuickStatusChange, isDraggi
               </div>
             </div>
 
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-                <Button variant="ghost" size="icon" className="h-7 w-7" onPointerDown={(e) => e.stopPropagation()}>
-                  <MoreVertical className="h-4 w-4" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(task); }}>
-                  <Edit className="mr-2 h-4 w-4" />
-                  Modifica
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="text-red-600">
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Elimina
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+            <div className="flex items-center gap-1">
+              {draggable && (
+                <button
+                  type="button"
+                  aria-label="Trascina task"
+                  title={isMobile ? 'Tieni premuto e trascina' : 'Trascina'}
+                  className="inline-flex h-7 w-7 touch-none items-center justify-center rounded-md border border-slate-200 bg-white text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+                  {...listeners}
+                  {...attributes}
+                >
+                  <GripVertical className="h-4 w-4" />
+                </button>
+              )}
+
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+                  <Button variant="ghost" size="icon" className="h-7 w-7" onPointerDown={(e) => e.stopPropagation()}>
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="end">
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onEdit(task); }}>
+                    <Edit className="mr-2 h-4 w-4" />
+                    Modifica
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem onClick={(e) => { e.stopPropagation(); onDelete(task.id); }} className="text-red-600">
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Elimina
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
 
           {task.description && <p className="line-clamp-2 text-xs text-slate-500">{task.description}</p>}
@@ -244,9 +267,10 @@ interface ColumnProps {
   onEdit: (task: Task) => void;
   onDelete: (taskId: number) => void;
   onQuickStatusChange: (taskId: number, status: TaskStatus) => void;
+  isMobile: boolean;
 }
 
-function Column({ column, tasks, users, onEdit, onDelete, onQuickStatusChange }: ColumnProps) {
+function Column({ column, tasks, users, onEdit, onDelete, onQuickStatusChange, isMobile }: ColumnProps) {
   const { setNodeRef, isOver } = useDroppable({
     id: column.id,
   });
@@ -290,6 +314,7 @@ function Column({ column, tasks, users, onEdit, onDelete, onQuickStatusChange }:
                 onEdit={onEdit}
                 onDelete={onDelete}
                 onQuickStatusChange={onQuickStatusChange}
+                isMobile={isMobile}
               />
             ))
           )}
@@ -350,8 +375,8 @@ export default function TasksPage() {
     }),
     useSensor(TouchSensor, {
       activationConstraint: {
-        delay: 180,
-        tolerance: 8,
+        delay: 240,
+        tolerance: 6,
       },
     })
   );
@@ -538,6 +563,7 @@ export default function TasksPage() {
               collisionDetection={closestCorners}
               onDragStart={handleDragStart}
               onDragEnd={handleDragEnd}
+              autoScroll={!isMobile}
             >
               <div className="flex snap-x snap-mandatory gap-3 overflow-x-auto pb-2 md:h-[calc(100vh-280px)] md:snap-none md:pr-1 lg:gap-4 lg:h-[calc(100vh-270px)]">
                 {COLUMNS.map((column) => (
@@ -549,10 +575,11 @@ export default function TasksPage() {
                     onEdit={handleEditTask}
                     onDelete={handleDeleteTask}
                     onQuickStatusChange={moveTaskStatus}
+                    isMobile={isMobile}
                   />
                 ))}
               </div>
-              <DragOverlay>
+              <DragOverlay dropAnimation={null}>
                 {activeTask ? (
                   <div className={isMobile ? '' : 'rotate-1 scale-[1.02]'}>
                     <TaskCard
@@ -564,6 +591,7 @@ export default function TasksPage() {
                       isDragging
                       draggable={false}
                       isOverlay
+                      isMobile={isMobile}
                     />
                   </div>
                 ) : null}
