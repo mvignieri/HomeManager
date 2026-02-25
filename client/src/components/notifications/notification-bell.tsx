@@ -12,6 +12,7 @@ import { Separator } from '@/components/ui/separator';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import type { Notification } from '@shared/schema';
 import { useToast } from '@/hooks/use-toast';
+import { useLocation } from 'wouter';
 
 interface NotificationBellProps {
   userId?: number;
@@ -22,6 +23,7 @@ export default function NotificationBell({ userId, houseId }: NotificationBellPr
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+  const [, setLocation] = useLocation();
 
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ['/api/notifications', userId, houseId],
@@ -104,6 +106,17 @@ export default function NotificationBell({ userId, houseId }: NotificationBellPr
     if (!notification.read) {
       markAsReadMutation.mutate(notification.id);
     }
+
+    const data = notification.data as any;
+    const taskId = data?.taskId;
+
+    if (taskId && ['task_assigned', 'task_created', 'task_completed'].includes(notification.type)) {
+      setOpen(false);
+      setLocation(`/tasks?taskId=${taskId}`);
+    } else if (notification.type === 'shopping_list_updated') {
+      setOpen(false);
+      setLocation('/shopping-list');
+    }
   };
 
   const formatTimestamp = (date: Date | string) => {
@@ -125,6 +138,8 @@ export default function NotificationBell({ userId, houseId }: NotificationBellPr
     switch (type) {
       case 'task_assigned':
         return '📋';
+      case 'task_created':
+        return '📝';
       case 'task_completed':
         return '✅';
       case 'device_update':

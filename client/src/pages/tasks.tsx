@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent } from '@/components/ui/card';
@@ -8,6 +8,7 @@ import {
   DragOverlay,
   closestCorners,
   PointerSensor,
+  TouchSensor,
   useSensor,
   useSensors,
   DragStartEvent,
@@ -55,6 +56,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 const COLUMNS = [
   {
@@ -104,15 +106,18 @@ interface TaskCardProps {
   onDelete: (taskId: number) => void;
   onQuickStatusChange: (taskId: number, status: TaskStatus) => void;
   isDragging?: boolean;
+  draggable?: boolean;
+  isOverlay?: boolean;
 }
 
-function TaskCard({ task, users, onEdit, onDelete, onQuickStatusChange, isDragging }: TaskCardProps) {
+function TaskCard({ task, users, onEdit, onDelete, onQuickStatusChange, isDragging, draggable = true, isOverlay = false }: TaskCardProps) {
   const { attributes, listeners, setNodeRef, transform, isDragging: isDraggingFromHook } = useDraggable({
     id: task.id.toString(),
     data: { task },
+    disabled: !draggable,
   });
 
-  const style = transform
+  const style = !isOverlay && transform
     ? {
         transform: `translate3d(${transform.x}px, ${transform.y}px, 0)`,
       }
@@ -132,16 +137,30 @@ function TaskCard({ task, users, onEdit, onDelete, onQuickStatusChange, isDraggi
     <Card
       ref={setNodeRef}
       style={style}
-      className={`glass-surface interactive-lift mb-3 cursor-grab active:cursor-grabbing rounded-2xl border p-0 ${
-        isDragging || isDraggingFromHook ? 'opacity-70 shadow-xl' : ''
+      className={`glass-surface interactive-lift mb-3 rounded-2xl border p-0 ${
+        draggable ? 'cursor-grab active:cursor-grabbing' : ''
+      } ${
+        isDraggingFromHook && !isOverlay ? 'opacity-0' : ''
+      } ${
+        isDragging || isOverlay ? 'shadow-xl ring-1 ring-primary/20' : ''
       }`}
-      {...listeners}
-      {...attributes}
+      {...(draggable ? listeners : {})}
+      {...(draggable ? attributes : {})}
     >
       <CardContent className="p-4">
         <div className="space-y-3">
           <div className="flex items-start justify-between gap-2">
             <div className="space-y-1">
+              {assignedUser && (
+                <div className="inline-flex max-w-full items-center gap-1.5 rounded-full border border-slate-200 bg-white px-2 py-1">
+                  <img
+                    src={assignedUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(assignedUser.displayName || 'User')}`}
+                    alt={assignedUser.displayName || 'User'}
+                    className="h-5 w-5 rounded-full border border-slate-200"
+                  />
+                  <span className="truncate text-[11px] text-slate-600">{assignedUser.displayName || assignedUser.email}</span>
+                </div>
+              )}
               <h3 className={`text-sm font-semibold leading-tight ${isComplete ? 'text-slate-500 line-through' : 'text-slate-800'}`}>
                 {task.title}
               </h3>
@@ -212,16 +231,6 @@ function TaskCard({ task, users, onEdit, onDelete, onQuickStatusChange, isDraggi
             })}
           </div>
 
-          {assignedUser && (
-            <div className="flex items-center gap-2 border-t border-slate-200 pt-2">
-              <img
-                src={assignedUser.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(assignedUser.displayName || 'User')}`}
-                alt={assignedUser.displayName || 'User'}
-                className="h-7 w-7 rounded-full border border-slate-200"
-              />
-              <span className="text-xs text-slate-600">{assignedUser.displayName || assignedUser.email}</span>
-            </div>
-          )}
         </div>
       </CardContent>
     </Card>
@@ -293,6 +302,7 @@ function Column({ column, tasks, users, onEdit, onDelete, onQuickStatusChange }:
 export default function TasksPage() {
   const { currentHouse } = useAppContext();
   const { tasks, isLoading, deleteTask } = useTasks();
+  const isMobile = useIsMobile();
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -300,6 +310,23 @@ export default function TasksPage() {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [taskToDelete, setTaskToDelete] = useState<number | null>(null);
   const [activeId, setActiveId] = useState<string | null>(null);
+
+  // Read ?taskId=X from URL and open the corresponding task modal
+  const [pendingTaskId] = useState<number | null>(() => {
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('taskId');
+    return id ? parseInt(id, 10) : null;
+  });
+
+  useEffect(() => {
+    if (!pendingTaskId || tasks.length === 0) return;
+    const task = tasks.find((t) => t.id === pendingTaskId);
+    if (task) {
+      setEditingTask(task);
+      setTaskModalOpen(true);
+      window.history.replaceState({}, '', '/tasks');
+    }
+  }, [pendingTaskId, tasks]);
 
   const { data: allUsers = [] } = useQuery<UserModel[]>({
     queryKey: ['/api/users'],
@@ -318,7 +345,13 @@ export default function TasksPage() {
   const sensors = useSensors(
     useSensor(PointerSensor, {
       activationConstraint: {
-        distance: 8,
+        distance: isMobile ? 4 : 8,
+      },
+    }),
+    useSensor(TouchSensor, {
+      activationConstraint: {
+        delay: 180,
+        tolerance: 8,
       },
     })
   );
@@ -521,7 +554,7 @@ export default function TasksPage() {
               </div>
               <DragOverlay>
                 {activeTask ? (
-                  <div className="rotate-2 scale-105">
+                  <div className={isMobile ? '' : 'rotate-1 scale-[1.02]'}>
                     <TaskCard
                       task={activeTask}
                       users={allUsers}
@@ -529,6 +562,8 @@ export default function TasksPage() {
                       onDelete={handleDeleteTask}
                       onQuickStatusChange={moveTaskStatus}
                       isDragging
+                      draggable={false}
+                      isOverlay
                     />
                   </div>
                 ) : null}

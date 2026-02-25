@@ -617,6 +617,10 @@ app.get('/api/tasks', async (req, res) => {
 app.post('/api/tasks', async (req, res) => {
   try {
     const taskData = insertTaskSchema.parse(req.body);
+    // If created with an assignee, start directly in 'assigned' status
+    if (taskData.assignedToId && (!taskData.status || taskData.status === 'created')) {
+      (taskData as any).status = 'assigned';
+    }
     const task = await storage.createTask(taskData);
 
     if (task.assignedToId) {

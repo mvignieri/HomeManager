@@ -724,7 +724,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       // Validate task data
       const taskData = insertTaskSchema.parse(req.body);
-      
+      // If created with an assignee, start directly in 'assigned' status
+      if (taskData.assignedToId && (!taskData.status || taskData.status === 'created')) {
+        (taskData as any).status = 'assigned';
+      }
       // Create task
       const task = await storage.createTask(taskData);
       
