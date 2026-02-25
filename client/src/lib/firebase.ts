@@ -39,23 +39,24 @@ provider.addScope(GCAL_SCOPE);
 
 // Sign in with Google using popup
 export const signInWithGoogle = async () => {
+  // Pre-set the auth version BEFORE the popup opens.
+  // onAuthStateChanged fires during the popup flow; if the version key isn't
+  // already present it would see a mismatch and force-logout the new session,
+  // causing the first login attempt to silently fail.
+  localStorage.setItem(AUTH_VERSION_KEY, REQUIRED_AUTH_VERSION);
+
   try {
     console.warn('🔵 Firebase: Starting Google sign-in with popup');
     const result = await signInWithPopup(auth, provider);
     console.warn('🟢 Firebase: Sign-in successful:', result.user.email);
 
     // Extract the Google OAuth access token (includes calendar.readonly scope)
-    // and store it so useGoogleCalendar can use it immediately without a
-    // second auth popup.
+    // and store it so useGoogleCalendar can use it immediately.
     const credential = GoogleAuthProvider.credentialFromResult(result);
     if (credential?.accessToken) {
       sessionStorage.setItem(GCAL_TOKEN_KEY, credential.accessToken);
       console.warn('🟢 Firebase: Google Calendar token stored');
     }
-
-    // Mark that this session was created with the current auth version,
-    // so the version check in AppContext won't force a re-login.
-    localStorage.setItem(AUTH_VERSION_KEY, REQUIRED_AUTH_VERSION);
 
     return result.user;
   } catch (error: any) {

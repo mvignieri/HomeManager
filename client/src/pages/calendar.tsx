@@ -17,48 +17,50 @@ import { useQuery } from '@tanstack/react-query';
 import { User, Task } from '@shared/schema';
 import { useAppContext } from '@/context/app-context';
 
-function getEventDay(event: { start: { date?: string; dateTime?: string } }): Date | null {
-  const raw = event.start.dateTime ?? event.start.date;
+function getEventDay(ev: { start: { date?: string; dateTime?: string } }): Date | null {
+  const raw = ev.start.dateTime ?? ev.start.date;
   if (!raw) return null;
   return startOfDay(parseISO(raw));
 }
 
-function getPriorityColor(priority: string) {
-  switch (priority) {
-    case 'high': return 'bg-red-500';
-    case 'medium': return 'bg-amber-500';
-    case 'low': return 'bg-green-500';
-    default: return 'bg-gray-400';
-  }
-}
-
-function getStatusColor(status: string) {
-  switch (status) {
-    case 'completed': return 'bg-green-500';
-    case 'in_progress': return 'bg-blue-500';
-    case 'assigned': return 'bg-amber-500';
-    case 'created': return 'bg-slate-400';
-    default: return 'bg-gray-400';
-  }
-}
-
-function formatEventTime(event: { start: { date?: string; dateTime?: string }; end: { date?: string; dateTime?: string } }) {
-  if (event.start.dateTime) {
-    return `${format(parseISO(event.start.dateTime), 'HH:mm')} – ${format(parseISO(event.end.dateTime!), 'HH:mm')}`;
+function formatEventTime(ev: { start: { date?: string; dateTime?: string }; end: { date?: string; dateTime?: string } }) {
+  if (ev.start.dateTime) {
+    return `${format(parseISO(ev.start.dateTime), 'HH:mm')} – ${format(parseISO(ev.end.dateTime!), 'HH:mm')}`;
   }
   return 'All day';
 }
 
+function getStatusColor(status: string) {
+  switch (status) {
+    case 'completed':   return 'bg-green-500';
+    case 'in_progress': return 'bg-blue-500';
+    case 'assigned':    return 'bg-amber-500';
+    default:            return 'bg-slate-400';
+  }
+}
+
+function getPriorityColor(priority: string) {
+  switch (priority) {
+    case 'high':   return 'text-red-600 border-red-200';
+    case 'low':    return 'text-green-600 border-green-200';
+    default:       return 'text-amber-600 border-amber-200';
+  }
+}
+
 export default function CalendarPage() {
   const { currentHouse, user } = useAppContext();
+
   const [selectedDate, setSelectedDate] = useState<Date>(new Date());
-  const [currentView, setCurrentView] = useState<'calendar' | 'day'>('calendar');
+  // Controlled month so the calendar follows when navigating days with arrows
+  const [calendarMonth, setCalendarMonth] = useState<Date>(new Date());
+
   const [taskModalOpen, setTaskModalOpen] = useState(false);
   const [editingTask, setEditingTask] = useState<Task | undefined>(undefined);
   const [defaultDateForModal, setDefaultDateForModal] = useState<string | undefined>(undefined);
 
   const { tasks, getTasksByDay, completeTask } = useTasks();
-  const { events, isLoading: eventsLoading, isConnected, isConnecting, needsReconnect, reconnect } = useGoogleCalendar(user?.email ?? undefined);
+  const { events, isLoading: eventsLoading, isConnected, isConnecting, needsReconnect, reconnect } =
+    useGoogleCalendar(user?.email ?? undefined);
 
   const { data: houseMembers = [] } = useQuery<User[]>({
     queryKey: ['/api/houses', currentHouse?.id, 'members'],
@@ -72,7 +74,7 @@ export default function CalendarPage() {
     enabled: !!currentHouse?.id,
   });
 
-  // Build sets of days that have tasks or events for calendar dots
+  // ── Dot modifiers ──────────────────────────────────────────────────────────
   const taskDays = useMemo(() => {
     const days = new Set<string>();
     tasks.forEach((task) => {
@@ -97,75 +99,59 @@ export default function CalendarPage() {
     return days;
   }, [events]);
 
-  // Calendar modifiers for react-day-picker
   const modifiers = {
-    hasTask: (date: Date) => taskDays.has(format(date, 'yyyy-MM-dd')),
+    hasTask:  (date: Date) => taskDays.has(format(date, 'yyyy-MM-dd')),
     hasEvent: (date: Date) => eventDays.has(format(date, 'yyyy-MM-dd')),
   };
-
   const modifiersClassNames = {
-    hasTask: 'has-task-dot',
+    hasTask:  'has-task-dot',
     hasEvent: 'has-event-dot',
   };
 
-  const handleDateClick = (date: Date | undefined) => {
+  // ── Day selection & navigation ─────────────────────────────────────────────
+  const handleDateSelect = (date: Date | undefined) => {
     if (!date) return;
     setSelectedDate(date);
-    setCurrentView('day');
+    // Keep calendar on the same month the user is viewing
   };
 
+  const navigateDay = (dir: 'prev' | 'next') => {
+    setSelectedDate((d) => {
+      const next = addDays(d, dir === 'prev' ? -1 : 1);
+      // If month changed, scroll the calendar to show the new month
+      if (next.getMonth() !== d.getMonth() || next.getFullYear() !== d.getFullYear()) {
+        setCalendarMonth(next);
+      }
+      return next;
+    });
+  };
+
+  // ── Events / tasks for selected day ───────────────────────────────────────
+  const tasksForDay  = getTasksByDay(selectedDate);
+  const eventsForDay = events.filter((ev) => {
+    const d = getEventDay(ev);
+    return d && isSameDay(d, selectedDate);
+  });
+
+  // ── Modal helpers ──────────────────────────────────────────────────────────
   const openAddTask = (date?: Date) => {
     setEditingTask(undefined);
     setDefaultDateForModal(date ? format(date, 'yyyy-MM-dd') : undefined);
     setTaskModalOpen(true);
   };
 
-  const navigateDay = (direction: 'prev' | 'next') => {
-    setSelectedDate((d) => addDays(d, direction === 'prev' ? -1 : 1));
-  };
-
-  // Events and tasks for selected day
-  const tasksForDay = getTasksByDay(selectedDate);
-  const eventsForDay = events.filter((ev) => {
-    const d = getEventDay(ev);
-    return d && isSameDay(d, selectedDate);
-  });
-
-  // Upcoming 14 days combined view
-  const upcomingDays = useMemo(() => {
-    const days = [];
-    for (let i = 0; i < 14; i++) {
-      const day = addDays(new Date(), i);
-      const dayTasks = getTasksByDay(day);
-      const dayStr = format(day, 'yyyy-MM-dd');
-      const dayEvents = events.filter((ev) => {
-        const d = getEventDay(ev);
-        return d && format(d, 'yyyy-MM-dd') === dayStr;
-      });
-      if (dayTasks.length > 0 || dayEvents.length > 0) {
-        days.push({ date: day, tasks: dayTasks, events: dayEvents });
-      }
-    }
-    return days;
-  }, [tasks, events, getTasksByDay]);
-
   return (
     <div className="flex flex-col h-screen bg-gray-50">
       <Navbar title="Calendar" />
       <Sidebar />
+
+      {/* Header */}
       <header className="bg-white border-b border-gray-200 px-3 py-3 shadow-sm sm:px-4 md:ml-20 md:px-5 lg:ml-64 lg:px-6">
-        <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center justify-between gap-2">
+          <p className="text-sm font-medium text-gray-600">
+            {format(calendarMonth, 'MMMM yyyy')}
+          </p>
           <div className="flex items-center gap-2">
-            {currentView === 'day' && (
-              <Button variant="ghost" size="icon" onClick={() => setCurrentView('calendar')}>
-                <ArrowLeft className="h-4 w-4" />
-              </Button>
-            )}
-            <p className="text-sm font-medium text-gray-600">
-              {currentView === 'calendar' ? 'Monthly view' : format(selectedDate, 'MMMM d, yyyy')}
-            </p>
-          </div>
-          <div className="flex items-center gap-2 self-start sm:self-auto">
             {isConnected ? (
               <Badge variant="outline" className="text-green-600 border-green-300 flex items-center gap-1 text-xs">
                 <Wifi className="h-3 w-3" />
@@ -177,17 +163,12 @@ export default function CalendarPage() {
                 Connecting…
               </Badge>
             ) : needsReconnect ? (
-              <Button
-                size="sm"
-                variant="outline"
-                className="text-xs flex items-center gap-1 text-amber-600 border-amber-300"
-                onClick={reconnect}
-              >
+              <Button size="sm" variant="outline" className="text-xs flex items-center gap-1 text-amber-600 border-amber-300" onClick={reconnect}>
                 <CalendarIcon className="h-3 w-3" />
                 Reconnect Calendar
               </Button>
             ) : null}
-            <Button size="sm" variant="outline" className="flex items-center gap-1" onClick={() => openAddTask(currentView === 'day' ? selectedDate : undefined)}>
+            <Button size="sm" variant="outline" className="flex items-center gap-1" onClick={() => openAddTask(selectedDate)}>
               <Plus className="h-4 w-4" />
               Add Task
             </Button>
@@ -195,143 +176,105 @@ export default function CalendarPage() {
         </div>
       </header>
 
-      {/* Calendar dot styles injected inline */}
+      {/* Dot styles */}
       <style>{`
+        .has-task-dot, .has-event-dot { position: relative; }
         .has-task-dot::after {
           content: '';
-          display: block;
-          width: 5px;
-          height: 5px;
-          border-radius: 50%;
-          background: #f59e0b;
-          margin: 1px auto 0;
-        }
-        .has-event-dot::before {
-          content: '';
-          display: block;
-          width: 5px;
-          height: 5px;
-          border-radius: 50%;
-          background: #3b82f6;
-          margin: 0 auto 1px;
           position: absolute;
           bottom: 2px;
           left: 50%;
           transform: translateX(-50%);
+          width: 4px; height: 4px;
+          border-radius: 50%;
+          background: #f59e0b;
         }
-        .has-task-dot { position: relative; }
-        .has-event-dot { position: relative; }
+        .has-event-dot::before {
+          content: '';
+          position: absolute;
+          bottom: 2px;
+          left: calc(50% - 5px);
+          width: 4px; height: 4px;
+          border-radius: 50%;
+          background: #3b82f6;
+        }
+        .has-task-dot.has-event-dot::after  { left: calc(50% + 1px); }
+        .has-task-dot.has-event-dot::before { left: calc(50% - 5px); }
       `}</style>
 
-      <main className="flex-grow overflow-y-auto px-3 py-5 pb-24 sm:px-4 md:ml-20 md:px-5 md:py-6 md:pb-6 lg:ml-64 lg:px-6">
-        {currentView === 'calendar' ? (
-          <div className="space-y-6">
-            <CalendarComponent
-              mode="single"
-              selected={selectedDate}
-              onSelect={handleDateClick}
-              className="rounded-md border shadow-sm bg-white"
-              modifiers={modifiers}
-              modifiersClassNames={modifiersClassNames}
-            />
+      <main className="flex-grow overflow-y-auto px-3 py-4 pb-24 space-y-4 sm:px-4 md:ml-20 md:px-5 md:py-5 md:pb-6 lg:ml-64 lg:px-6">
 
-            {/* Legend */}
-            <div className="flex items-center gap-4 text-xs text-gray-500 px-1">
-              <span className="flex items-center gap-1">
-                <span className="inline-block w-2 h-2 rounded-full bg-amber-400" />
-                App tasks
-              </span>
-              {isConnected && (
-                <span className="flex items-center gap-1">
-                  <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
-                  Google Calendar events
-                </span>
-              )}
-            </div>
+        {/* ── Calendar – always visible ──────────────────────────────────── */}
+        <CalendarComponent
+          mode="single"
+          selected={selectedDate}
+          onSelect={handleDateSelect}
+          month={calendarMonth}
+          onMonthChange={setCalendarMonth}
+          className="rounded-md border shadow-sm bg-white w-full"
+          modifiers={modifiers}
+          modifiersClassNames={modifiersClassNames}
+        />
 
-            {/* Events and Tasks section */}
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-medium text-gray-700 mb-3">Events and Tasks</h3>
-                {upcomingDays.length === 0 ? (
-                  <p className="text-sm text-gray-400 text-center py-4">No upcoming events or tasks in the next 14 days</p>
-                ) : (
-                  <div className="space-y-4">
-                    {upcomingDays.map(({ date, tasks: dayTasks, events: dayEvents }) => (
-                      <div key={format(date, 'yyyy-MM-dd')}>
-                        <div
-                          className="text-xs font-semibold text-gray-500 mb-1 flex items-center gap-1 cursor-pointer hover:text-gray-700"
-                          onClick={() => { setSelectedDate(date); setCurrentView('day'); }}
-                        >
-                          {isToday(date) ? 'Today' : format(date, 'EEE, MMM d')}
-                        </div>
-                        <div className="space-y-1.5 pl-2">
-                          {dayEvents.map((ev) => (
-                            <div key={ev.id} className="flex items-center gap-2 p-2 bg-blue-50 rounded text-xs">
-                              <span className="inline-block w-2 h-2 rounded-full bg-blue-500 flex-shrink-0" />
-                              <span className="font-medium text-blue-800 truncate">{ev.summary}</span>
-                              <span className="text-blue-500 flex-shrink-0 ml-auto">{formatEventTime(ev)}</span>
-                            </div>
-                          ))}
-                          {dayTasks.map((task) => (
-                            <div key={task.id} className="flex items-center gap-2 p-2 bg-white border border-gray-100 rounded text-xs">
-                              <span className={`inline-block w-2 h-2 rounded-full flex-shrink-0 ${getStatusColor(task.status)}`} />
-                              <span className="font-medium text-gray-800 truncate">{task.title}</span>
-                              <Badge
-                                variant="outline"
-                                className={`ml-auto flex-shrink-0 text-xs px-1 py-0 ${task.priority === 'high' ? 'border-red-300 text-red-600' : task.priority === 'low' ? 'border-green-300 text-green-600' : 'border-amber-300 text-amber-600'}`}
-                              >
-                                {task.priority}
-                              </Badge>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        ) : (
-          <div className="space-y-6">
+        {/* Legend */}
+        <div className="flex items-center gap-4 text-xs text-gray-500 px-1">
+          <span className="flex items-center gap-1">
+            <span className="inline-block w-2 h-2 rounded-full bg-amber-400" />
+            Tasks
+          </span>
+          {isConnected && (
+            <span className="flex items-center gap-1">
+              <span className="inline-block w-2 h-2 rounded-full bg-blue-500" />
+              Google Calendar
+            </span>
+          )}
+        </div>
+
+        {/* ── Selected day detail ────────────────────────────────────────── */}
+        <Card>
+          <CardContent className="p-4 space-y-4">
+
             {/* Day navigation */}
             <div className="flex items-center justify-between">
               <Button variant="outline" size="icon" onClick={() => navigateDay('prev')}>
                 <ArrowLeft className="h-4 w-4" />
               </Button>
               <div className="flex items-center gap-2">
-                <Badge variant={isToday(selectedDate) ? 'default' : 'secondary'} className="px-2">
+                <Badge variant={isToday(selectedDate) ? 'default' : 'secondary'}>
                   {isToday(selectedDate) ? 'Today' : format(selectedDate, 'EEEE')}
                 </Badge>
-                <span className="text-sm text-gray-500">{format(selectedDate, 'MMMM d, yyyy')}</span>
+                <span className="text-sm text-gray-600">{format(selectedDate, 'MMMM d, yyyy')}</span>
               </div>
               <Button variant="outline" size="icon" onClick={() => navigateDay('next')}>
                 <ArrowRight className="h-4 w-4" />
               </Button>
             </div>
 
-            {/* Google Calendar Events */}
+            {/* Google Calendar events for selected day */}
             {isConnected && (
               <div className="space-y-2">
-                <h3 className="font-medium text-gray-700 text-sm flex items-center gap-2">
+                <h3 className="text-sm font-medium text-gray-600 flex items-center gap-2">
                   <CalendarIcon className="h-4 w-4 text-blue-500" />
-                  Google Calendar Events
+                  Google Calendar
                   {eventsLoading && <span className="text-xs text-gray-400">Loading…</span>}
                 </h3>
                 {eventsForDay.length === 0 ? (
                   <p className="text-xs text-gray-400 pl-6">No events</p>
                 ) : (
-                  <div className="space-y-2">
+                  <div className="space-y-1.5 pl-1">
                     {eventsForDay.map((ev) => (
-                      <div key={ev.id} className="bg-blue-50 border border-blue-100 rounded-lg p-3">
-                        <div className="flex items-start justify-between">
-                          <p className="text-sm font-medium text-blue-900">{ev.summary}</p>
-                          <span className="text-xs text-blue-500 flex-shrink-0 ml-2">{formatEventTime(ev)}</span>
+                      <div
+                        key={ev.id}
+                        className="flex items-start gap-2 rounded-lg p-2.5 text-sm"
+                        style={{ backgroundColor: ev.calendarColor ? `${ev.calendarColor}18` : '#eff6ff', borderLeft: `3px solid ${ev.calendarColor ?? '#3b82f6'}` }}
+                      >
+                        <div className="flex-grow min-w-0">
+                          <p className="font-medium text-gray-800 truncate">{ev.summary}</p>
+                          {ev.description && (
+                            <p className="text-xs text-gray-500 mt-0.5 line-clamp-1">{ev.description}</p>
+                          )}
                         </div>
-                        {ev.description && (
-                          <p className="text-xs text-blue-700 mt-1 line-clamp-2">{ev.description}</p>
-                        )}
+                        <span className="text-xs text-gray-500 flex-shrink-0">{formatEventTime(ev)}</span>
                       </div>
                     ))}
                   </div>
@@ -339,59 +282,49 @@ export default function CalendarPage() {
               </div>
             )}
 
-            {/* App Tasks */}
+            {/* App tasks for selected day */}
             <div className="space-y-2">
               <div className="flex items-center justify-between">
-                <h3 className="font-medium text-gray-700 text-sm">
-                  App Tasks
+                <h3 className="text-sm font-medium text-gray-600">
+                  Tasks
+                  <Badge variant="outline" className="ml-2 text-xs">{tasksForDay.length}</Badge>
                 </h3>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="text-xs">{tasksForDay.length} tasks</Badge>
-                  <Button size="sm" variant="outline" className="text-xs flex items-center gap-1 h-7" onClick={() => openAddTask(selectedDate)}>
-                    <Plus className="h-3 w-3" />
-                    Add
-                  </Button>
-                </div>
+                <Button size="sm" variant="outline" className="h-7 text-xs flex items-center gap-1" onClick={() => openAddTask(selectedDate)}>
+                  <Plus className="h-3 w-3" />
+                  Add
+                </Button>
               </div>
 
               {tasksForDay.length === 0 ? (
-                <div className="bg-white rounded-lg shadow-sm p-8 text-center">
-                  <CheckCircle className="h-10 w-10 text-gray-300 mx-auto mb-2" />
-                  <h3 className="text-base font-medium text-gray-500">No tasks scheduled</h3>
-                  <p className="text-sm text-gray-400 mt-1">Enjoy your free day!</p>
-                  <Button className="mt-4" size="sm" onClick={() => openAddTask(selectedDate)}>
+                <div className="text-center py-6">
+                  <CheckCircle className="h-8 w-8 text-gray-300 mx-auto mb-2" />
+                  <p className="text-sm text-gray-400">No tasks for this day</p>
+                  <Button className="mt-3" size="sm" variant="outline" onClick={() => openAddTask(selectedDate)}>
                     Add Task
                   </Button>
                 </div>
               ) : (
-                <div className="space-y-2">
+                <div className="space-y-1.5">
                   {tasksForDay.map((task) => (
-                    <div key={task.id} className="bg-white rounded-lg shadow-sm p-3 flex items-start gap-3">
-                      <div className={`mt-1 w-3 h-3 rounded-full flex-shrink-0 ${getStatusColor(task.status)}`} />
+                    <div key={task.id} className="flex items-center gap-3 rounded-lg border bg-white p-2.5">
+                      <div className={`w-2.5 h-2.5 rounded-full flex-shrink-0 ${getStatusColor(task.status)}`} />
                       <div className="flex-grow min-w-0">
                         <p className="text-sm font-medium text-gray-800 truncate">{task.title}</p>
-                        {task.description && (
-                          <p className="text-xs text-gray-500 mt-0.5 truncate">{task.description}</p>
+                        {task.endDate && (
+                          <p className="text-xs text-gray-400">→ {format(new Date(task.endDate), 'MMM d')}</p>
                         )}
-                        <div className="flex items-center gap-2 mt-1">
-                          <span className={`inline-block w-1.5 h-1.5 rounded-full ${getPriorityColor(task.priority)}`} />
-                          <span className="text-xs text-gray-400 capitalize">{task.priority}</span>
-                          {task.endDate && (
-                            <span className="text-xs text-gray-400">
-                              → {format(new Date(task.endDate), 'MMM d')}
-                            </span>
-                          )}
-                        </div>
                       </div>
+                      <Badge variant="outline" className={`text-xs flex-shrink-0 ${getPriorityColor(task.priority)}`}>
+                        {task.priority}
+                      </Badge>
                       {task.status !== 'completed' && (
                         <Button
-                          variant="outline"
+                          variant="ghost"
                           size="sm"
-                          className="text-xs flex items-center gap-1 h-7 flex-shrink-0"
+                          className="h-7 px-2 text-xs text-gray-500 flex-shrink-0"
                           onClick={() => completeTask(task.id)}
                         >
-                          <CheckCircle className="h-3 w-3" />
-                          Complete
+                          <CheckCircle className="h-3.5 w-3.5" />
                         </Button>
                       )}
                     </div>
@@ -399,8 +332,9 @@ export default function CalendarPage() {
                 </div>
               )}
             </div>
-          </div>
-        )}
+
+          </CardContent>
+        </Card>
       </main>
 
       <BottomNav />
