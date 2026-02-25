@@ -781,7 +781,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const updates = { ...req.body };
 
       // List of date fields that might be in the update
-      const dateFields = ['dueDate', 'completedAt', 'createdAt'];
+      const dateFields = ['dueDate', 'endDate', 'completedAt', 'createdAt'];
 
       for (const field of dateFields) {
         if (updates[field]) {

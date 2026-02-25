@@ -30,6 +30,7 @@ import { useTasks } from '@/hooks/use-tasks';
 const taskFormSchema = insertTaskSchema.extend({
   dueDate: z.string().optional().nullable(),
   dueTime: z.string().optional().nullable(),
+  endDate: z.string().optional().nullable(),
 });
 
 type TaskFormValues = z.infer<typeof taskFormSchema>;
@@ -39,11 +40,13 @@ interface TaskModalProps {
   onOpenChange: (open: boolean) => void;
   task?: Task;
   users: User[];
+  defaultDate?: string; // ISO date string YYYY-MM-DD to pre-fill dueDate
 }
 
-export default function TaskModal({ open, onOpenChange, task, users }: TaskModalProps) {
+export default function TaskModal({ open, onOpenChange, task, users, defaultDate }: TaskModalProps) {
   const { user, currentHouse } = useAppContext();
   const { createTaskAsync, updateTaskAsync, isCreating, isUpdating } = useTasks();
+  const [isMultiDay, setIsMultiDay] = React.useState(!!task?.endDate);
   const { data: allUsers = [] } = useQuery<User[]>({
     queryKey: ['/api/users'],
   });
@@ -61,8 +64,9 @@ export default function TaskModal({ open, onOpenChange, task, users }: TaskModal
     houseId: task?.houseId || currentHouse?.id || 0,
     createdById: task?.createdById || dbUser?.id || 0,
     assignedToId: task?.assignedToId || null,
-    dueDate: task?.dueDate ? new Date(task.dueDate).toISOString().substring(0, 10) : null,
+    dueDate: task?.dueDate ? new Date(task.dueDate).toISOString().substring(0, 10) : (defaultDate || null),
     dueTime: task?.dueDate ? new Date(task.dueDate).toISOString().substring(11, 16) : null,
+    endDate: task?.endDate ? new Date(task.endDate).toISOString().substring(0, 10) : null,
   };
 
   const form = useForm<TaskFormValues>({
@@ -73,6 +77,8 @@ export default function TaskModal({ open, onOpenChange, task, users }: TaskModal
   // Reset form when modal opens or task changes
   React.useEffect(() => {
     if (open) {
+      const hasEndDate = !!task?.endDate;
+      setIsMultiDay(hasEndDate);
       const resetValues: Partial<TaskFormValues> = {
         title: task?.title || '',
         description: task?.description || '',
@@ -83,8 +89,9 @@ export default function TaskModal({ open, onOpenChange, task, users }: TaskModal
         houseId: task?.houseId || currentHouse?.id || 0,
         createdById: task?.createdById || dbUser?.id || 0,
         assignedToId: task?.assignedToId || null,
-        dueDate: task?.dueDate ? new Date(task.dueDate).toISOString().substring(0, 10) : null,
+        dueDate: task?.dueDate ? new Date(task.dueDate).toISOString().substring(0, 10) : (defaultDate || null),
         dueTime: task?.dueDate ? new Date(task.dueDate).toISOString().substring(11, 16) : null,
+        endDate: task?.endDate ? new Date(task.endDate).toISOString().substring(0, 10) : null,
       };
       form.reset(resetValues);
     }
@@ -117,10 +124,13 @@ export default function TaskModal({ open, onOpenChange, task, users }: TaskModal
               : new Date(values.dueDate))
           : null;
 
-        const { dueDate: _dueDate, dueTime: _dueTime, ...restValues } = values;
+        const endDateValue = isMultiDay && values.endDate ? new Date(values.endDate) : null;
+
+        const { dueDate: _dueDate, dueTime: _dueTime, endDate: _endDate, ...restValues } = values;
         const updateData = {
           ...restValues,
           dueDate: dueDateValue,
+          endDate: endDateValue,
           houseId: currentHouse.id,
         };
 
@@ -130,7 +140,10 @@ export default function TaskModal({ open, onOpenChange, task, users }: TaskModal
         });
       } else {
         // For create, pass the form values directly (useTasks will handle conversion)
-        await createTaskAsync(taskData);
+        await createTaskAsync({
+          ...taskData,
+          endDate: isMultiDay ? taskData.endDate : null,
+        });
       }
       onOpenChange(false); // Only close after mutation completes
     } catch (error) {
@@ -220,6 +233,43 @@ export default function TaskModal({ open, onOpenChange, task, users }: TaskModal
               />
             </div>
             
+            <div className="flex items-center gap-2">
+              <input
+                type="checkbox"
+                id="multi-day-toggle"
+                checked={isMultiDay}
+                onChange={(e) => {
+                  setIsMultiDay(e.target.checked);
+                  if (!e.target.checked) form.setValue('endDate', null);
+                }}
+                className="h-4 w-4 rounded border-gray-300"
+              />
+              <label htmlFor="multi-day-toggle" className="text-sm font-medium text-gray-700 cursor-pointer">
+                Multi-day task
+              </label>
+            </div>
+
+            {isMultiDay && (
+              <FormField
+                control={form.control}
+                name="endDate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>End Date</FormLabel>
+                    <FormControl>
+                      <Input
+                        type="date"
+                        {...field}
+                        value={field.value || ''}
+                        min={form.watch('dueDate') || undefined}
+                      />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+            )}
+
             <div className="grid grid-cols-2 gap-4">
               <FormField
                 control={form.control}

@@ -614,54 +614,58 @@ export default function SettingsPage() {
                           <p className="truncate text-sm text-gray-500">{userInfo?.email}</p>
                         </div>
                       </div>
-                      <div className="flex flex-wrap items-center justify-end gap-2 sm:justify-start">
-                        {getRoleBadge(member.role)}
-                        {member.userId !== dbUser?.id && (
-                          <>
-                            {/* Only allow removal if: user is not removing themselves, and if removing an admin, the current user must also be admin */}
-                            {(member.role !== 'admin' || currentMember?.role === 'admin') ? (
+                      <div className="flex flex-col items-end gap-2 sm:items-start">
+                        <div className="flex w-full justify-end sm:w-auto sm:justify-start">
+                          {getRoleBadge(member.role)}
+                        </div>
+
+                        <div className="flex w-full justify-end gap-2 sm:w-auto sm:justify-start">
+                          {member.userId !== dbUser?.id && (
+                            <>
+                              {/* Only allow removal if: user is not removing themselves, and if removing an admin, the current user must also be admin */}
+                              {(member.role !== 'admin' || currentMember?.role === 'admin') ? (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => {
+                                    if (window.confirm(`Are you sure you want to remove ${userInfo?.displayName || 'this member'} from the house?`)) {
+                                      removeMemberMutation.mutate(member.id);
+                                    }
+                                  }}
+                                  className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              ) : (
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  disabled
+                                  title="Only admins can remove other admins"
+                                  className="text-gray-400 cursor-not-allowed"
+                                >
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              )}
+                            </>
+                          )}
+                          <Dialog>
+                            <DialogTrigger asChild>
                               <Button
                                 variant="outline"
                                 size="sm"
-                                onClick={() => {
-                                  if (window.confirm(`Are you sure you want to remove ${userInfo?.displayName || 'this member'} from the house?`)) {
-                                    removeMemberMutation.mutate(member.id);
-                                  }
-                                }}
-                                className="text-red-600 hover:text-red-700 hover:bg-red-50"
+                                onClick={() => setEditingMember(member)}
                               >
-                                <Trash2 className="h-4 w-4" />
+                                <SettingsIcon className="h-4 w-4" />
                               </Button>
-                            ) : (
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                disabled
-                                title="Only admins can remove other admins"
-                                className="text-gray-400 cursor-not-allowed"
-                              >
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            )}
-                          </>
-                        )}
-                        <Dialog>
-                          <DialogTrigger asChild>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              onClick={() => setEditingMember(member)}
-                            >
-                              <SettingsIcon className="h-4 w-4" />
-                            </Button>
-                          </DialogTrigger>
-                          <DialogContent className="max-w-md">
-                            <DialogHeader>
-                              <DialogTitle>Edit Permissions</DialogTitle>
-                              <DialogDescription>
-                                Manage role and permissions for {userInfo?.displayName}
-                              </DialogDescription>
-                            </DialogHeader>
+                            </DialogTrigger>
+                            <DialogContent className="max-w-md">
+                              <DialogHeader>
+                                <DialogTitle>Edit Permissions</DialogTitle>
+                                <DialogDescription>
+                                  Manage role and permissions for {userInfo?.displayName}
+                                </DialogDescription>
+                              </DialogHeader>
 
                             <div className="space-y-4">
                               <div className="space-y-2">
@@ -784,12 +788,13 @@ export default function SettingsPage() {
                             </div>
 
                             <DialogFooter>
-                              <Button variant="outline" onClick={() => setEditingMember(null)}>
-                                Close
-                              </Button>
+                                <Button variant="outline" onClick={() => setEditingMember(null)}>
+                                  Close
+                                </Button>
                             </DialogFooter>
-                          </DialogContent>
-                        </Dialog>
+                            </DialogContent>
+                          </Dialog>
+                        </div>
                       </div>
                     </div>
 

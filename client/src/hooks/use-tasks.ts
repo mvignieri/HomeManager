@@ -10,6 +10,7 @@ import { z } from 'zod';
 const taskFormSchema = insertTaskSchema.extend({
   dueDate: z.string().optional().nullable(),
   dueTime: z.string().optional().nullable(),
+  endDate: z.string().optional().nullable(),
 });
 
 type TaskFormValues = z.infer<typeof taskFormSchema>;
@@ -71,6 +72,7 @@ export function useTasks(filter?: string) {
         priority: taskData.priority as TaskPriority || 'medium',
         status: taskData.status as TaskStatus || 'created',
         dueDate: dueDateTime,
+        endDate: taskData.endDate ? new Date(taskData.endDate) : null,
         effortHours: taskData.effortHours || 0,
         effortMinutes: taskData.effortMinutes || 0,
         houseId: currentHouse?.id as number,
@@ -186,16 +188,27 @@ export function useTasks(filter?: string) {
     },
   });
 
-  // Filter tasks by day
+  // Filter tasks by day (supports multi-day tasks via endDate)
   const getTasksByDay = useCallback((date: Date) => {
+    const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+    const dayEnd = new Date(date.getFullYear(), date.getMonth(), date.getDate() + 1);
+
     return sortedTasks.filter((task) => {
       if (!task.dueDate) return false;
-      
-      const taskDate = new Date(task.dueDate);
+
+      const taskStart = new Date(task.dueDate);
+      taskStart.setHours(0, 0, 0, 0);
+
+      if (task.endDate) {
+        const taskEnd = new Date(task.endDate);
+        taskEnd.setHours(23, 59, 59, 999);
+        return taskStart <= dayEnd && taskEnd >= dayStart;
+      }
+
       return (
-        taskDate.getDate() === date.getDate() &&
-        taskDate.getMonth() === date.getMonth() &&
-        taskDate.getFullYear() === date.getFullYear()
+        taskStart.getDate() === dayStart.getDate() &&
+        taskStart.getMonth() === dayStart.getMonth() &&
+        taskStart.getFullYear() === dayStart.getFullYear()
       );
     });
   }, [sortedTasks]);

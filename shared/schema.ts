@@ -56,6 +56,7 @@ export const tasks = pgTable("tasks", {
   priority: text("priority").notNull().default("medium"),
   status: text("status").notNull().default("created"),
   dueDate: timestamp("due_date"),
+  endDate: timestamp("end_date"),
   effortHours: integer("effort_hours").default(0),
   effortMinutes: integer("effort_minutes").default(0),
   houseId: integer("house_id").notNull().references(() => houses.id),
@@ -66,12 +67,15 @@ export const tasks = pgTable("tasks", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+const dateTransform = z.union([z.date(), z.string(), z.null()]).optional().transform((val) => {
+  if (!val || val === null) return null;
+  if (typeof val === 'string') return new Date(val);
+  return val;
+});
+
 export const insertTaskSchema = createInsertSchema(tasks, {
-  dueDate: z.union([z.date(), z.string(), z.null()]).optional().transform((val) => {
-    if (!val || val === null) return null;
-    if (typeof val === 'string') return new Date(val);
-    return val;
-  }),
+  dueDate: dateTransform,
+  endDate: dateTransform,
 }).omit({
   id: true,
   createdAt: true,
