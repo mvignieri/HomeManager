@@ -5,7 +5,8 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Calendar, CheckCircle, Sunrise, Sun, Moon } from 'lucide-react';
 import { useTasks } from '@/hooks/use-tasks';
-import { useGoogleCalendar, GoogleCalendarEvent } from '@/hooks/use-google-calendar';
+import { useAppContext } from '@/context/app-context';
+import { GoogleCalendarEvent } from '@/hooks/use-google-calendar';
 
 const BRIEFING_DATE_KEY = 'daily_briefing_date';
 
@@ -39,16 +40,15 @@ function getStatusColor(status: string) {
 }
 
 interface DailyBriefingModalProps {
-  userEmail?: string | null;
   userName?: string | null;
 }
 
-export default function DailyBriefingModal({ userEmail, userName }: DailyBriefingModalProps) {
+export default function DailyBriefingModal({ userName }: DailyBriefingModalProps) {
   const [open, setOpen] = useState(false);
   const today = new Date();
 
   const { getTasksByDay } = useTasks();
-  const { events, isConnected } = useGoogleCalendar(userEmail ?? undefined);
+  const { events, isConnected } = useAppContext().googleCalendar;
 
   const todayTasks = getTasksByDay(today);
   const todayEvents = events.filter((ev) => {

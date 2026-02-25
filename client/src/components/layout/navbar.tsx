@@ -12,7 +12,7 @@ import { useQuery } from '@tanstack/react-query';
 import NotificationBell from '@/components/notifications/notification-bell';
 import { useLocation } from 'wouter';
 import { signOut } from '@/lib/firebase';
-import { Home, Mail, Sparkles } from 'lucide-react';
+import { Home, Mail, Sparkles, CalendarX } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 
@@ -21,7 +21,8 @@ interface NavbarProps {
 }
 
 export default function Navbar({ title = 'HomeManager' }: NavbarProps) {
-  const { user, currentHouse, houses, setCurrentHouse, setShowCreateHouseModal } = useAppContext();
+  const { user, currentHouse, houses, setCurrentHouse, setShowCreateHouseModal, googleCalendar } = useAppContext();
+  const { needsReconnect, isConnecting, reconnect } = googleCalendar;
   const [, setLocation] = useLocation();
 
   const handleLogout = async () => {
@@ -116,6 +117,29 @@ export default function Navbar({ title = 'HomeManager' }: NavbarProps) {
 
         {user && (
           <div className="ml-2 flex shrink-0 items-center gap-1 md:gap-2">
+            {/* Google Calendar reconnect — shown globally when token is lost */}
+            {needsReconnect && (
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={reconnect}
+                title="Reconnect Google Calendar"
+                className="relative h-9 w-9 rounded-xl border border-amber-300 bg-amber-50 text-amber-600 hover:bg-amber-100 md:h-10 md:w-10"
+              >
+                <CalendarX className="h-4 w-4 md:h-5 md:w-5" />
+              </Button>
+            )}
+            {isConnecting && (
+              <Button
+                variant="ghost"
+                size="icon"
+                disabled
+                className="h-9 w-9 rounded-xl border border-slate-200 bg-white/80 md:h-10 md:w-10"
+              >
+                <CalendarX className="h-4 w-4 animate-pulse text-slate-400 md:h-5 md:w-5" />
+              </Button>
+            )}
+
             <Button
               variant="ghost"
               size="icon"

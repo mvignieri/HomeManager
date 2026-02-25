@@ -408,7 +408,7 @@ function App() {
       {user && <PWAInstallPrompt />}
 
       {/* Daily Briefing Modal */}
-      {user && <DailyBriefingModal userEmail={user.email} userName={user.displayName} />}
+      {user && <DailyBriefingModal userName={user.displayName} />}
     </>
   );
 }

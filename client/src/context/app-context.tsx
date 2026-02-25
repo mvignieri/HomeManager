@@ -5,9 +5,20 @@ import { useLocation } from 'wouter';
 import { useQuery } from '@tanstack/react-query';
 import { Task, House, User as UserModel } from '@shared/schema';
 import { queryClient } from '@/lib/queryClient';
+import { useGoogleCalendar, GoogleCalendarEvent } from '@/hooks/use-google-calendar';
 
 // Make queryClient globally available for WebSocket
 window.queryClient = queryClient;
+
+interface GoogleCalendarContext {
+  events: GoogleCalendarEvent[];
+  isLoading: boolean;
+  isConnected: boolean;
+  isConnecting: boolean;
+  needsReconnect: boolean;
+  reconnect: () => void;
+  disconnect: () => void;
+}
 
 interface AppContextProps {
   user: User | null;
@@ -18,6 +29,7 @@ interface AppContextProps {
   refreshHouses: () => void;
   showCreateHouseModal: boolean;
   setShowCreateHouseModal: (show: boolean) => void;
+  googleCalendar: GoogleCalendarContext;
 }
 
 const AppContext = createContext<AppContextProps>({
@@ -29,6 +41,15 @@ const AppContext = createContext<AppContextProps>({
   refreshHouses: () => {},
   showCreateHouseModal: false,
   setShowCreateHouseModal: () => {},
+  googleCalendar: {
+    events: [],
+    isLoading: false,
+    isConnected: false,
+    isConnecting: false,
+    needsReconnect: false,
+    reconnect: () => {},
+    disconnect: () => {},
+  },
 });
 
 export const useAppContext = () => useContext(AppContext);
@@ -39,6 +60,10 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
   const [currentHouse, setCurrentHouse] = useState<House | null>(null);
   const [showCreateHouseModal, setShowCreateHouseModal] = useState(false);
   const [location, setLocation] = useLocation();
+
+  // Global Google Calendar connection — one instance for the whole app so
+  // reconnect state is visible from any page (e.g. Navbar).
+  const googleCalendar = useGoogleCalendar(user?.email ?? undefined);
 
   // Fetch houses for the current user
   const { data: houses = [], refetch: refreshHouses } = useQuery<House[]>({
@@ -147,6 +172,7 @@ export const AppProvider: React.FC<{ children: ReactNode }> = ({ children }) => 
     refreshHouses,
     showCreateHouseModal,
     setShowCreateHouseModal,
+    googleCalendar,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

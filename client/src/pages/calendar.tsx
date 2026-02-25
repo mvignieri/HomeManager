@@ -12,7 +12,6 @@ import Sidebar from '@/components/layout/sidebar';
 import BottomNav from '@/components/layout/bottom-nav';
 import TaskModal from '@/components/tasks/task-modal';
 import { useTasks } from '@/hooks/use-tasks';
-import { useGoogleCalendar } from '@/hooks/use-google-calendar';
 import { useQuery } from '@tanstack/react-query';
 import { User, Task } from '@shared/schema';
 import { useAppContext } from '@/context/app-context';
@@ -60,7 +59,7 @@ export default function CalendarPage() {
 
   const { tasks, getTasksByDay, completeTask } = useTasks();
   const { events, isLoading: eventsLoading, isConnected, isConnecting, needsReconnect, reconnect } =
-    useGoogleCalendar(user?.email ?? undefined);
+    useAppContext().googleCalendar;
 
   const { data: houseMembers = [] } = useQuery<User[]>({
     queryKey: ['/api/houses', currentHouse?.id, 'members'],
