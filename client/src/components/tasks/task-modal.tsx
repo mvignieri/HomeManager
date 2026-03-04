@@ -281,8 +281,9 @@ export default function TaskModal({ open, onOpenChange, task, users, defaultDate
                       <Input
                         type="number"
                         min={0}
-                        value={field.value || 0}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        value={field.value || ''}
+                        onChange={(e) => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value))}
+                        onBlur={() => { if (!field.value) field.onChange(0); }}
                       />
                     </FormControl>
                     <FormMessage />
@@ -301,8 +302,9 @@ export default function TaskModal({ open, onOpenChange, task, users, defaultDate
                         type="number"
                         min={0}
                         max={59}
-                        value={field.value || 0}
-                        onChange={(e) => field.onChange(parseInt(e.target.value) || 0)}
+                        value={field.value || ''}
+                        onChange={(e) => field.onChange(e.target.value === '' ? 0 : parseInt(e.target.value))}
+                        onBlur={() => { if (!field.value) field.onChange(0); }}
                       />
                     </FormControl>
                     <FormMessage />

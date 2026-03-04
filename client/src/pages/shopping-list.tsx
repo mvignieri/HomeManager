@@ -317,7 +317,7 @@ export default function ShoppingListPage() {
         houseId: currentHouse.id,
         addedById: dbUser.id,
         name: name.trim(),
-        quantity,
+        quantity: Math.max(1, quantity || 1),
         unit,
         category: selectedPoint,
       });
@@ -459,8 +459,9 @@ export default function ShoppingListPage() {
               <Input
                 type="number"
                 min={1}
-                value={quantity}
-                onChange={(e) => setQuantity(Math.max(1, Number(e.target.value) || 1))}
+                value={quantity || ''}
+                onChange={(e) => setQuantity(e.target.value === '' ? 0 : Math.max(1, Number(e.target.value)))}
+                onBlur={() => { if (!quantity) setQuantity(1); }}
               />
               <Input
                 value={unit}
