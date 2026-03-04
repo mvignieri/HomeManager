@@ -69,6 +69,7 @@ export const tasks = pgTable("tasks", {
   assignedToId: integer("assigned_to_id").references(() => users.id),
   completedById: integer("completed_by_id").references(() => users.id),
   completedAt: timestamp("completed_at"),
+  archivedAt: timestamp("archived_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
@@ -103,6 +104,7 @@ export const shoppingListItems = pgTable("shopping_list_items", {
   addedById: integer("added_by_id").notNull().references(() => users.id),
   purchasedById: integer("purchased_by_id").references(() => users.id),
   purchasedAt: timestamp("purchased_at"),
+  archivedAt: timestamp("archived_at"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

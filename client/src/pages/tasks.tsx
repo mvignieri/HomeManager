@@ -30,7 +30,15 @@ import {
   CheckCircle2,
   Sparkles,
   GripVertical,
+  ChevronDown,
+  RotateCcw,
+  Archive,
 } from 'lucide-react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import { useTasks } from '@/hooks/use-tasks';
 import { useAppContext } from '@/context/app-context';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
@@ -326,8 +334,9 @@ function Column({ column, tasks, users, onEdit, onDelete, onQuickStatusChange, i
 
 export default function TasksPage() {
   const { currentHouse } = useAppContext();
-  const { tasks, isLoading, deleteTask } = useTasks();
+  const { tasks, archivedTasks, isLoading, deleteTask, unarchiveTask } = useTasks();
   const isMobile = useIsMobile();
+  const [archiveOpen, setArchiveOpen] = useState(false);
   const queryClient = useQueryClient();
   const [searchQuery, setSearchQuery] = useState('');
   const [taskModalOpen, setTaskModalOpen] = useState(false);
@@ -598,6 +607,43 @@ export default function TasksPage() {
               </DragOverlay>
             </DndContext>
           </div>
+
+          {archivedTasks.length > 0 && (
+            <Collapsible open={archiveOpen} onOpenChange={setArchiveOpen} className="mt-4">
+              <CollapsibleTrigger asChild>
+                <button className="flex w-full items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 px-4 py-3 text-sm font-medium text-slate-500 hover:bg-slate-100/80 transition-colors">
+                  <Archive className="h-4 w-4" />
+                  <span>Archivio ({archivedTasks.length})</span>
+                  <ChevronDown className={`ml-auto h-4 w-4 transition-transform ${archiveOpen ? 'rotate-180' : ''}`} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="mt-2 space-y-2 rounded-xl border border-slate-200/70 bg-white/60 p-3">
+                  {archivedTasks.map((task) => (
+                    <div key={task.id} className="flex items-center justify-between gap-3 rounded-lg bg-slate-50/80 px-3 py-2">
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate text-sm text-slate-500 line-through">{task.title}</span>
+                        {task.archivedAt && (
+                          <span className="text-xs text-slate-400">
+                            Archiviato il {new Date(task.archivedAt).toLocaleDateString('it-IT')}
+                          </span>
+                        )}
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="shrink-0 h-8 gap-1 text-xs text-slate-600 hover:text-slate-900"
+                        onClick={() => unarchiveTask(task.id)}
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        Ripristina
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
         </section>
       </div>
 

@@ -1,4 +1,4 @@
-import { eq, and, desc, inArray } from 'drizzle-orm';
+import { eq, and, desc, inArray, isNull, isNotNull, lt } from 'drizzle-orm';
 import { db } from './db.js';
 import {
   users, type User, type InsertUser,
@@ -117,7 +117,7 @@ export class PostgresStorage implements IStorage {
   }
 
   async getTasksByHouse(houseId: number): Promise<Task[]> {
-    return db.select().from(tasks).where(eq(tasks.houseId, houseId));
+    return db.select().from(tasks).where(and(eq(tasks.houseId, houseId), isNull(tasks.archivedAt)));
   }
 
   async getTasksByUser(userId: number): Promise<Task[]> {
@@ -153,6 +153,35 @@ export class PostgresStorage implements IStorage {
     await db.delete(tasks).where(eq(tasks.id, id));
   }
 
+  async getArchivedTasksByHouse(houseId: number): Promise<Task[]> {
+    return db.select().from(tasks).where(and(eq(tasks.houseId, houseId), isNotNull(tasks.archivedAt)));
+  }
+
+  async unarchiveTask(id: number): Promise<Task | undefined> {
+    const result = await db
+      .update(tasks)
+      .set({ archivedAt: null })
+      .where(eq(tasks.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async autoArchiveTasks(): Promise<number> {
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    const result = await db
+      .update(tasks)
+      .set({ archivedAt: new Date() })
+      .where(
+        and(
+          eq(tasks.status, 'completed'),
+          lt(tasks.completedAt, threeDaysAgo),
+          isNull(tasks.archivedAt)
+        )
+      )
+      .returning();
+    return result.length;
+  }
+
   // Shopping list methods
   async getShoppingListItem(id: number): Promise<ShoppingListItem | undefined> {
     const result = await db.select().from(shoppingListItems).where(eq(shoppingListItems.id, id));
@@ -163,7 +192,7 @@ export class PostgresStorage implements IStorage {
     return db
       .select()
       .from(shoppingListItems)
-      .where(eq(shoppingListItems.houseId, houseId))
+      .where(and(eq(shoppingListItems.houseId, houseId), isNull(shoppingListItems.archivedAt)))
       .orderBy(shoppingListItems.isPurchased, shoppingListItems.createdAt);
   }
 
@@ -191,6 +220,39 @@ export class PostgresStorage implements IStorage {
 
   async deleteShoppingListItem(id: number): Promise<void> {
     await db.delete(shoppingListItems).where(eq(shoppingListItems.id, id));
+  }
+
+  async getArchivedShoppingItemsByHouse(houseId: number): Promise<ShoppingListItem[]> {
+    return db
+      .select()
+      .from(shoppingListItems)
+      .where(and(eq(shoppingListItems.houseId, houseId), isNotNull(shoppingListItems.archivedAt)))
+      .orderBy(desc(shoppingListItems.archivedAt));
+  }
+
+  async unarchiveShoppingItem(id: number): Promise<ShoppingListItem | undefined> {
+    const result = await db
+      .update(shoppingListItems)
+      .set({ archivedAt: null, updatedAt: new Date() })
+      .where(eq(shoppingListItems.id, id))
+      .returning();
+    return result[0];
+  }
+
+  async autoArchiveShoppingItems(): Promise<number> {
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 60 * 60 * 1000);
+    const result = await db
+      .update(shoppingListItems)
+      .set({ archivedAt: new Date() })
+      .where(
+        and(
+          eq(shoppingListItems.isPurchased, true),
+          lt(shoppingListItems.purchasedAt, threeDaysAgo),
+          isNull(shoppingListItems.archivedAt)
+        )
+      )
+      .returning();
+    return result.length;
   }
 
   // Device methods

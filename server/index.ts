@@ -4,6 +4,7 @@ import { registerRoutes } from "./routes.js";
 import { setupVite, serveStatic, log } from "./vite.js";
 import { runStartupChecks } from "./startup-checks.js";
 import { initializeFirebaseAdmin } from "./firebase-admin.js";
+import { startArchiveService } from "./archive-service.js";
 
 const app = express();
 app.use(express.json());
@@ -45,6 +46,9 @@ app.use((req, res, next) => {
 
   // Run comprehensive startup checks
   await runStartupChecks();
+
+  // Start auto-archive background service
+  startArchiveService();
 
   const server = await registerRoutes(app);
 

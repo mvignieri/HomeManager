@@ -79,6 +79,7 @@ export function useTasks(filter?: string) {
         createdById: taskData.createdById,
         assignedToId: taskData.assignedToId || null,
         completedById: null,
+        archivedAt: null,
       };
 
       const res = await apiRequest('POST', '/api/tasks', task);
@@ -188,6 +189,37 @@ export function useTasks(filter?: string) {
     },
   });
 
+  // Fetch archived tasks
+  const { data: archivedTasks = [] } = useQuery<Task[]>({
+    queryKey: ['/api/houses', currentHouse?.id, 'tasks', 'archived'],
+    queryFn: async () => {
+      if (!currentHouse?.id) return [];
+      const res = await fetch(`/api/houses/${currentHouse.id}/tasks/archived`);
+      if (!res.ok) throw new Error('Failed to fetch archived tasks');
+      return res.json();
+    },
+    enabled: !!currentHouse,
+  });
+
+  // Unarchive task mutation
+  const unarchiveTaskMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest('PATCH', `/api/tasks/${id}/unarchive`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/houses', currentHouse?.id, 'tasks', 'archived'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/tasks'] });
+    },
+    onError: (error: any) => {
+      toast({
+        title: 'Failed to Restore Task',
+        description: error.message || 'An error occurred while restoring the task',
+        variant: 'destructive',
+      });
+    },
+  });
+
   // Filter tasks by day (supports multi-day tasks via endDate)
   const getTasksByDay = useCallback((date: Date) => {
     const dayStart = new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -215,6 +247,7 @@ export function useTasks(filter?: string) {
 
   return {
     tasks: sortedTasks,
+    archivedTasks,
     isLoading,
     error,
     refetch,
@@ -228,6 +261,7 @@ export function useTasks(filter?: string) {
     deleteTask: deleteTaskMutation.mutate,
     completeTask: completeTaskMutation.mutate,
     assignTask: assignTaskMutation.mutate,
+    unarchiveTask: unarchiveTaskMutation.mutate,
     isCreating: createTaskMutation.isPending,
     isUpdating: updateTaskMutation.isPending,
     isDeleting: deleteTaskMutation.isPending,

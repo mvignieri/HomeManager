@@ -46,6 +46,9 @@ export interface IStorage {
   createTask(task: InsertTask): Promise<Task>;
   updateTask(id: number, updates: Partial<Task>): Promise<Task>;
   deleteTask(id: number): Promise<void>;
+  getArchivedTasksByHouse(houseId: number): Promise<Task[]>;
+  unarchiveTask(id: number): Promise<Task | undefined>;
+  autoArchiveTasks(): Promise<number>;
 
   // Shopping list methods
   getShoppingListItem(id: number): Promise<ShoppingListItem | undefined>;
@@ -53,6 +56,9 @@ export interface IStorage {
   createShoppingListItem(item: InsertShoppingListItem): Promise<ShoppingListItem>;
   updateShoppingListItem(id: number, updates: Partial<ShoppingListItem>): Promise<ShoppingListItem>;
   deleteShoppingListItem(id: number): Promise<void>;
+  getArchivedShoppingItemsByHouse(houseId: number): Promise<ShoppingListItem[]>;
+  unarchiveShoppingItem(id: number): Promise<ShoppingListItem | undefined>;
+  autoArchiveShoppingItems(): Promise<number>;
   
   // Device methods
   getDevice(id: number): Promise<Device | undefined>;
@@ -271,7 +277,7 @@ export class MemStorage implements IStorage {
   
   async getTasksByHouse(houseId: number): Promise<Task[]> {
     return Array.from(this.tasks.values()).filter(
-      (task) => task.houseId === houseId
+      (task) => task.houseId === houseId && !task.archivedAt
     );
   }
   
@@ -287,15 +293,34 @@ export class MemStorage implements IStorage {
   async createTask(insertTask: InsertTask): Promise<Task> {
     const id = this.taskIdCounter++;
     const now = new Date();
-    const task: Task = { 
-      ...insertTask, 
-      id, 
+    const task: Task = {
+      ...insertTask,
+      id,
       createdAt: now,
       completedAt: null,
-      completedById: null
+      completedById: null,
+      archivedAt: null,
     };
     this.tasks.set(id, task);
     return task;
+  }
+
+  async getArchivedTasksByHouse(houseId: number): Promise<Task[]> {
+    return Array.from(this.tasks.values()).filter(
+      (task) => task.houseId === houseId && !!task.archivedAt
+    );
+  }
+
+  async unarchiveTask(id: number): Promise<Task | undefined> {
+    const task = this.tasks.get(id);
+    if (!task) return undefined;
+    const updated = { ...task, archivedAt: null };
+    this.tasks.set(id, updated);
+    return updated;
+  }
+
+  async autoArchiveTasks(): Promise<number> {
+    return 0;
   }
   
   async updateTask(id: number, updates: Partial<Task>): Promise<Task> {
@@ -320,7 +345,7 @@ export class MemStorage implements IStorage {
 
   async getShoppingListItemsByHouse(houseId: number): Promise<ShoppingListItem[]> {
     return Array.from(this.shoppingListItems.values())
-      .filter((item) => item.houseId === houseId)
+      .filter((item) => item.houseId === houseId && !item.archivedAt)
       .sort((a, b) => {
         if (a.isPurchased !== b.isPurchased) {
           return a.isPurchased ? 1 : -1;
@@ -344,11 +369,30 @@ export class MemStorage implements IStorage {
       isPurchased: false,
       purchasedById: null,
       purchasedAt: null,
+      archivedAt: null,
       createdAt: now,
       updatedAt: now,
     };
     this.shoppingListItems.set(id, item);
     return item;
+  }
+
+  async getArchivedShoppingItemsByHouse(houseId: number): Promise<ShoppingListItem[]> {
+    return Array.from(this.shoppingListItems.values()).filter(
+      (item) => item.houseId === houseId && !!item.archivedAt
+    );
+  }
+
+  async unarchiveShoppingItem(id: number): Promise<ShoppingListItem | undefined> {
+    const item = this.shoppingListItems.get(id);
+    if (!item) return undefined;
+    const updated = { ...item, archivedAt: null, updatedAt: new Date() };
+    this.shoppingListItems.set(id, updated);
+    return updated;
+  }
+
+  async autoArchiveShoppingItems(): Promise<number> {
+    return 0;
   }
 
   async updateShoppingListItem(id: number, updates: Partial<ShoppingListItem>): Promise<ShoppingListItem> {

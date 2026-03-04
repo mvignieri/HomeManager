@@ -21,6 +21,7 @@ interface CommitShoppingChangesPayload {
 export function useShoppingList(houseId?: number) {
   const queryClient = useQueryClient();
   const listQueryKey = ['/api/shopping-items', houseId] as const;
+  const archivedQueryKey = ['/api/houses', houseId, 'shopping-items', 'archived'] as const;
 
   const sortItems = (items: ShoppingListItem[]) =>
     [...items].sort((a, b) => {
@@ -86,13 +87,37 @@ export function useShoppingList(houseId?: number) {
     },
   });
 
+  const { data: archivedItems = [] } = useQuery<ShoppingListItem[]>({
+    queryKey: archivedQueryKey,
+    queryFn: async () => {
+      if (!houseId) return [];
+      const res = await fetch(`/api/houses/${houseId}/shopping-items/archived`);
+      if (!res.ok) throw new Error('Failed to fetch archived shopping items');
+      return res.json();
+    },
+    enabled: !!houseId,
+  });
+
+  const unarchiveItemMutation = useMutation({
+    mutationFn: async (id: number) => {
+      const res = await apiRequest('PATCH', `/api/shopping-items/${id}/unarchive`, {});
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: archivedQueryKey });
+      queryClient.invalidateQueries({ queryKey: listQueryKey });
+    },
+  });
+
   return {
     items,
+    archivedItems,
     isLoading,
     createItem: createItemMutation.mutateAsync,
     updateItem: updateItemMutation.mutateAsync,
     deleteItem: deleteItemMutation.mutateAsync,
     commitChanges: commitChangesMutation.mutateAsync,
+    unarchiveItem: unarchiveItemMutation.mutateAsync,
     isCreating: createItemMutation.isPending,
     isUpdating: updateItemMutation.isPending,
     isDeleting: deleteItemMutation.isPending,

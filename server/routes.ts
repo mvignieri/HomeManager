@@ -900,6 +900,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Get archived tasks by house
+  app.get('/api/houses/:houseId/tasks/archived', async (req, res) => {
+    try {
+      const houseId = parseInt(req.params.houseId);
+      const archivedTasks = await storage.getArchivedTasksByHouse(houseId);
+      res.json(archivedTasks);
+    } catch (error) {
+      console.error('Error getting archived tasks:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Unarchive a task
+  app.patch('/api/tasks/:id/unarchive', async (req, res) => {
+    try {
+      const taskId = parseInt(req.params.id);
+      const task = await storage.unarchiveTask(taskId);
+      if (!task) {
+        return res.status(404).json({ message: 'Task not found' });
+      }
+      broadcastToHouse(task.houseId, { type: 'task_update', action: 'unarchived', task });
+      res.json(task);
+    } catch (error) {
+      console.error('Error unarchiving task:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
   // Delete task
   app.delete('/api/tasks/:id', async (req, res) => {
     try {
@@ -1019,6 +1047,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json({ success: true });
     } catch (error) {
       console.error('Error deleting shopping list item:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Get archived shopping items by house
+  app.get('/api/houses/:houseId/shopping-items/archived', async (req, res) => {
+    try {
+      const houseId = parseInt(req.params.houseId);
+      const archivedItems = await storage.getArchivedShoppingItemsByHouse(houseId);
+      res.json(archivedItems);
+    } catch (error) {
+      console.error('Error getting archived shopping items:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Unarchive a shopping item
+  app.patch('/api/shopping-items/:id/unarchive', async (req, res) => {
+    try {
+      const itemId = parseInt(req.params.id, 10);
+      const item = await storage.unarchiveShoppingItem(itemId);
+      if (!item) {
+        return res.status(404).json({ message: 'Shopping list item not found' });
+      }
+      broadcastToHouse(item.houseId, { type: 'shopping_list_update', action: 'unarchived', item });
+      res.json(item);
+    } catch (error) {
+      console.error('Error unarchiving shopping item:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });

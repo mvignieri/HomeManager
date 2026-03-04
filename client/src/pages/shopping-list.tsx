@@ -10,7 +10,14 @@ import {
   RotateCcw,
   GripVertical,
   X,
+  ChevronDown,
+  Archive,
 } from 'lucide-react';
+import {
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
 import {
   DndContext,
   DragEndEvent,
@@ -165,6 +172,7 @@ export default function ShoppingListPage() {
   const [activePointTab, setActivePointTab] = useState<string>('all');
   const [activeDragItemId, setActiveDragItemId] = useState<number | null>(null);
   const [hasPendingChanges, setHasPendingChanges] = useState(false);
+  const [archiveOpen, setArchiveOpen] = useState(false);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -185,11 +193,13 @@ export default function ShoppingListPage() {
 
   const {
     items,
+    archivedItems,
     isLoading,
     createItem,
     updateItem,
     deleteItem,
     commitChanges,
+    unarchiveItem,
     isCreating,
     isUpdating,
     isDeleting,
@@ -641,6 +651,41 @@ export default function ShoppingListPage() {
           </CardContent>
         </Card>
 
+          {archivedItems.length > 0 && (
+            <Collapsible open={archiveOpen} onOpenChange={setArchiveOpen}>
+              <CollapsibleTrigger asChild>
+                <button className="flex w-full items-center gap-2 rounded-xl border border-dashed border-slate-300 bg-slate-50/60 px-4 py-3 text-sm font-medium text-slate-500 hover:bg-slate-100/80 transition-colors">
+                  <Archive className="h-4 w-4" />
+                  <span>Archivio ({archivedItems.length})</span>
+                  <ChevronDown className={`ml-auto h-4 w-4 transition-transform ${archiveOpen ? 'rotate-180' : ''}`} />
+                </button>
+              </CollapsibleTrigger>
+              <CollapsibleContent>
+                <div className="mt-2 space-y-2 rounded-xl border border-slate-200/70 bg-white/60 p-3">
+                  {archivedItems.map((item) => (
+                    <div key={item.id} className="flex items-center justify-between gap-3 rounded-lg bg-slate-50/80 px-3 py-2">
+                      <div className="flex min-w-0 flex-col">
+                        <span className="truncate text-sm text-slate-500 line-through">{item.name}</span>
+                        <span className="text-xs text-slate-400">
+                          {item.quantity} {item.unit} · {item.category}
+                          {item.archivedAt && ` · ${new Date(item.archivedAt).toLocaleDateString('it-IT')}`}
+                        </span>
+                      </div>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="shrink-0 h-8 gap-1 text-xs text-slate-600 hover:text-slate-900"
+                        onClick={() => unarchiveItem(item.id)}
+                      >
+                        <RotateCcw className="h-3 w-3" />
+                        Ripristina
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </CollapsibleContent>
+            </Collapsible>
+          )}
         </div>
 
         <div className="mt-auto pt-3">
