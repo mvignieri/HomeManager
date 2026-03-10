@@ -120,7 +120,7 @@ export default function AnalyticsPage() {
       <Navbar />
       <div className="flex flex-1 overflow-hidden">
         <Sidebar />
-        <main className="flex-1 overflow-y-auto pb-20 md:pb-0">
+        <main className="flex-1 overflow-y-auto pb-20 md:pb-0 md:ml-20 lg:ml-64">
           <div className="max-w-5xl mx-auto px-4 py-6 space-y-6">
             {/* Header */}
             <div className="flex items-center justify-between">
