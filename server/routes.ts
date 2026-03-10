@@ -796,6 +796,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }
       }
 
+      // Auto-set completedAt when status transitions to completed
+      if (updates.status === 'completed' && task.status !== 'completed') {
+        if (!updates.completedAt) updates.completedAt = new Date();
+        if (!updates.completedById) updates.completedById = task.assignedToId || task.createdById;
+      }
+      // Clear completedAt if status moves away from completed
+      if (updates.status && updates.status !== 'completed' && task.status === 'completed') {
+        updates.completedAt = null;
+        updates.completedById = null;
+      }
+
       console.log('Updates after date conversion:', JSON.stringify(updates, null, 2));
 
       // Update task
@@ -1367,6 +1378,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       console.error('Error getting analytics:', error);
+      res.status(500).json({ message: 'Internal server error' });
+    }
+  });
+
+  // Cron job endpoint for Vercel - auto-archive tasks and shopping items
+  app.post('/api/cron/archive', async (req, res) => {
+    const secret = req.headers['authorization'];
+    if (secret !== `Bearer ${process.env.CRON_SECRET}`) {
+      return res.status(401).json({ message: 'Unauthorized' });
+    }
+    try {
+      const archivedTasks = await storage.autoArchiveTasks();
+      const archivedItems = await storage.autoArchiveShoppingItems();
+      console.log(`[cron] Archiviati ${archivedTasks} task e ${archivedItems} acquisti`);
+      res.json({ archivedTasks, archivedItems });
+    } catch (error) {
+      console.error('[cron] Errore archivazione:', error);
       res.status(500).json({ message: 'Internal server error' });
     }
   });
