@@ -49,6 +49,8 @@ export interface IStorage {
   getArchivedTasksByHouse(houseId: number): Promise<Task[]>;
   unarchiveTask(id: number): Promise<Task | undefined>;
   autoArchiveTasks(): Promise<number>;
+  getTasksForAnalytics(houseId: number, startDate: Date): Promise<Task[]>;
+  getShoppingItemsForAnalytics(houseId: number, startDate: Date): Promise<ShoppingListItem[]>;
 
   // Shopping list methods
   getShoppingListItem(id: number): Promise<ShoppingListItem | undefined>;
@@ -322,7 +324,25 @@ export class MemStorage implements IStorage {
   async autoArchiveTasks(): Promise<number> {
     return 0;
   }
-  
+
+  async getTasksForAnalytics(houseId: number, startDate: Date): Promise<Task[]> {
+    return Array.from(this.tasks.values()).filter(
+      t => t.houseId === houseId && (
+        new Date(t.createdAt) >= startDate ||
+        (t.completedAt && new Date(t.completedAt) >= startDate)
+      )
+    );
+  }
+
+  async getShoppingItemsForAnalytics(houseId: number, startDate: Date): Promise<ShoppingListItem[]> {
+    return Array.from(this.shoppingListItems.values()).filter(
+      i => i.houseId === houseId && (
+        new Date(i.createdAt) >= startDate ||
+        (i.purchasedAt && new Date(i.purchasedAt) >= startDate)
+      )
+    );
+  }
+
   async updateTask(id: number, updates: Partial<Task>): Promise<Task> {
     const task = this.tasks.get(id);
     if (!task) {

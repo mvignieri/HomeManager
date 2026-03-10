@@ -1,4 +1,4 @@
-import { eq, and, desc, inArray, isNull, isNotNull, lt } from 'drizzle-orm';
+import { eq, and, desc, inArray, isNull, isNotNull, lt, gte, or } from 'drizzle-orm';
 import { db } from './db.js';
 import {
   users, type User, type InsertUser,
@@ -164,6 +164,30 @@ export class PostgresStorage implements IStorage {
       .where(eq(tasks.id, id))
       .returning();
     return result[0];
+  }
+
+  async getTasksForAnalytics(houseId: number, startDate: Date): Promise<Task[]> {
+    return db.select().from(tasks).where(
+      and(
+        eq(tasks.houseId, houseId),
+        or(
+          gte(tasks.createdAt, startDate),
+          gte(tasks.completedAt, startDate)
+        )
+      )
+    );
+  }
+
+  async getShoppingItemsForAnalytics(houseId: number, startDate: Date): Promise<ShoppingListItem[]> {
+    return db.select().from(shoppingListItems).where(
+      and(
+        eq(shoppingListItems.houseId, houseId),
+        or(
+          gte(shoppingListItems.createdAt, startDate),
+          gte(shoppingListItems.purchasedAt, startDate)
+        )
+      )
+    );
   }
 
   async autoArchiveTasks(): Promise<number> {
