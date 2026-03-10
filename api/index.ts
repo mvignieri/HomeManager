@@ -1166,62 +1166,200 @@ app.delete('/api/notifications/:id', async (req, res) => {
  * Analytics Routes
  */
 
-app.get('/api/analytics', async (req, res) => {
+app.get('/api/analytics/tasks', async (req, res) => {
   try {
-    const houseId = req.query.houseId !== 'all' ? parseInt(req.query.houseId as string) : undefined;
-    const period = (req.query.period as string) || 'week';
+    const houseId = parseInt(req.query.houseId as string);
+    const periodDays = parseInt((req.query.period as string) || '30');
+    if (isNaN(houseId)) return res.status(400).json({ message: 'houseId required' });
 
-    const tasks = houseId
-      ? await storage.getTasksByHouse(houseId)
-      : await storage.getAllTasks();
+    const startDate = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
+    const allTasks = await storage.getTasksForAnalytics(houseId, startDate);
+    const allUsers = await storage.getAllUsers();
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
 
-    const completedTasks = tasks.filter(task => task.status === 'completed');
-    const completionRate = tasks.length > 0
-      ? Math.round((completedTasks.length / tasks.length) * 100)
-      : 0;
+    const totalCreated = allTasks.length;
+    const completedTasks = allTasks.filter(t => t.status === 'completed');
+    const totalCompleted = completedTasks.length;
+    const completionRate = totalCreated > 0 ? Math.round((totalCompleted / totalCreated) * 100) : 0;
 
-    const tasksByPriority = {
-      high: tasks.filter(task => task.priority === 'high').length,
-      medium: tasks.filter(task => task.priority === 'medium').length,
-      low: tasks.filter(task => task.priority === 'low').length,
+    const trendMap = new Map<string, { created: number; completed: number }>();
+    const getLabel = (date: Date): string => {
+      if (periodDays <= 30) {
+        return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+      } else if (periodDays <= 90) {
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const dayNum = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+        return `W${weekNo}`;
+      } else {
+        const months = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+        return `${months[date.getMonth()]} ${date.getFullYear()}`;
+      }
     };
 
-    const tasksByStatus = {
-      created: tasks.filter(task => task.status === 'created').length,
-      assigned: tasks.filter(task => task.status === 'assigned').length,
-      completed: tasks.filter(task => task.status === 'completed').length,
+    for (const task of allTasks) {
+      const createdLabel = getLabel(new Date(task.createdAt));
+      if (!trendMap.has(createdLabel)) trendMap.set(createdLabel, { created: 0, completed: 0 });
+      trendMap.get(createdLabel)!.created++;
+      if (task.completedAt) {
+        const completedLabel = getLabel(new Date(task.completedAt));
+        if (!trendMap.has(completedLabel)) trendMap.set(completedLabel, { created: 0, completed: 0 });
+        trendMap.get(completedLabel)!.completed++;
+      }
+    }
+    const trend = Array.from(trendMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([label, v]) => ({ label, ...v }));
+
+    const byPriority = {
+      high: allTasks.filter(t => t.priority === 'high').length,
+      medium: allTasks.filter(t => t.priority === 'medium').length,
+      low: allTasks.filter(t => t.priority === 'low').length,
     };
 
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-    const taskDistribution = Array.from({ length: 7 }, (_, i) => {
-      const date = days[i];
-      return {
-        date,
-        created: Math.floor(Math.random() * 10),
-        completed: Math.floor(Math.random() * 8),
-      };
-    });
+    const byStatus = {
+      created: allTasks.filter(t => t.status === 'created').length,
+      assigned: allTasks.filter(t => t.status === 'assigned').length,
+      in_progress: allTasks.filter(t => t.status === 'in_progress').length,
+      completed: totalCompleted,
+    };
 
-    const users = await storage.getAllUsers();
-    const topContributors = users
-      .slice(0, 3)
-      .map((user, index) => ({
-        userId: user.id,
-        name: user.displayName || user.email.split('@')[0],
-        photoURL: user.photoURL || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.displayName || 'User')}`,
-        taskCount: 42 - index * 7,
-        completionRate: 75 - index * 15,
-      }));
+    const contributorMap = new Map<number, { completed: number; total: number }>();
+    for (const task of allTasks) {
+      if (task.completedById) {
+        if (!contributorMap.has(task.completedById)) contributorMap.set(task.completedById, { completed: 0, total: 0 });
+        contributorMap.get(task.completedById)!.completed++;
+      }
+      const ref = task.assignedToId || task.createdById;
+      if (ref) {
+        if (!contributorMap.has(ref)) contributorMap.set(ref, { completed: 0, total: 0 });
+        contributorMap.get(ref)!.total++;
+      }
+    }
+    const topContributors = Array.from(contributorMap.entries())
+      .sort(([, a], [, b]) => b.completed - a.completed)
+      .slice(0, 5)
+      .map(([userId, stats]) => {
+        const user = userMap.get(userId);
+        return {
+          userId,
+          name: user?.displayName || user?.email.split('@')[0] || 'Unknown',
+          photoURL: user?.photoURL || null,
+          completed: stats.completed,
+          completionRate: stats.total > 0 ? Math.round((stats.completed / stats.total) * 100) : 0,
+        };
+      });
 
     res.json({
-      completionRate,
-      tasksByPriority,
-      tasksByStatus,
-      taskDistribution,
+      kpi: { totalCreated, totalCompleted, completionRate, totalEffortHours: 0 },
+      trend,
+      byPriority,
+      byStatus,
       topContributors,
     });
   } catch (error) {
-    console.error('Error getting analytics:', error);
+    console.error('Error getting task analytics:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
+app.get('/api/analytics/shopping', async (req, res) => {
+  try {
+    const houseId = parseInt(req.query.houseId as string);
+    const periodDays = parseInt((req.query.period as string) || '30');
+    if (isNaN(houseId)) return res.status(400).json({ message: 'houseId required' });
+
+    const startDate = new Date(Date.now() - periodDays * 24 * 60 * 60 * 1000);
+    const allItems = await storage.getShoppingItemsForAnalytics(houseId, startDate);
+    const allUsers = await storage.getAllUsers();
+    const userMap = new Map(allUsers.map(u => [u.id, u]));
+
+    const totalAdded = allItems.length;
+    const purchasedItems = allItems.filter(i => i.isPurchased);
+    const totalPurchased = purchasedItems.length;
+    const purchaseRate = totalAdded > 0 ? Math.round((totalPurchased / totalAdded) * 100) : 0;
+    const categoriesUsed = new Set(allItems.map(i => i.category)).size;
+
+    const trendMap = new Map<string, { added: number; purchased: number }>();
+    const getLabel = (date: Date): string => {
+      if (periodDays <= 30) {
+        return `${String(date.getDate()).padStart(2, '0')}/${String(date.getMonth() + 1).padStart(2, '0')}`;
+      } else if (periodDays <= 90) {
+        const d = new Date(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()));
+        const dayNum = d.getUTCDay() || 7;
+        d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+        const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+        const weekNo = Math.ceil((((d.getTime() - yearStart.getTime()) / 86400000) + 1) / 7);
+        return `W${weekNo}`;
+      } else {
+        const months = ['Gen', 'Feb', 'Mar', 'Apr', 'Mag', 'Giu', 'Lug', 'Ago', 'Set', 'Ott', 'Nov', 'Dic'];
+        return `${months[date.getMonth()]} ${date.getFullYear()}`;
+      }
+    };
+
+    for (const item of allItems) {
+      const addedLabel = getLabel(new Date(item.createdAt));
+      if (!trendMap.has(addedLabel)) trendMap.set(addedLabel, { added: 0, purchased: 0 });
+      trendMap.get(addedLabel)!.added++;
+      if (item.purchasedAt) {
+        const purchasedLabel = getLabel(new Date(item.purchasedAt));
+        if (!trendMap.has(purchasedLabel)) trendMap.set(purchasedLabel, { added: 0, purchased: 0 });
+        trendMap.get(purchasedLabel)!.purchased++;
+      }
+    }
+    const trend = Array.from(trendMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([label, v]) => ({ label, ...v }));
+
+    const categoryLabels: Record<string, string> = {
+      produce: 'Frutta/Verdura', dairy: 'Latticini', meat: 'Carne/Pesce',
+      bakery: 'Pane/Pasticceria', pantry: 'Dispensa', frozen: 'Surgelati',
+      beverages: 'Bevande', cleaning: 'Pulizia', home: 'Casa', other: 'Altro',
+    };
+    const catMap = new Map<string, number>();
+    for (const item of allItems) catMap.set(item.category, (catMap.get(item.category) || 0) + 1);
+    const byCategory = Array.from(catMap.entries())
+      .sort(([, a], [, b]) => b - a)
+      .map(([category, count]) => ({ category, label: categoryLabels[category] || category, count }));
+
+    const productMap = new Map<string, number>();
+    for (const item of allItems) {
+      const key = item.name.toLowerCase().trim();
+      productMap.set(key, (productMap.get(key) || 0) + 1);
+    }
+    const topProducts = Array.from(productMap.entries())
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 10)
+      .map(([name, count]) => ({ name: name.charAt(0).toUpperCase() + name.slice(1), count }));
+
+    const shopperMap = new Map<number, number>();
+    for (const item of purchasedItems) {
+      if (item.purchasedById) shopperMap.set(item.purchasedById, (shopperMap.get(item.purchasedById) || 0) + 1);
+    }
+    const topShoppers = Array.from(shopperMap.entries())
+      .sort(([, a], [, b]) => b - a)
+      .slice(0, 5)
+      .map(([userId, purchased]) => {
+        const user = userMap.get(userId);
+        return {
+          userId,
+          name: user?.displayName || user?.email.split('@')[0] || 'Unknown',
+          photoURL: user?.photoURL || null,
+          purchased,
+        };
+      });
+
+    res.json({
+      kpi: { totalAdded, totalPurchased, purchaseRate, categoriesUsed },
+      trend,
+      byCategory,
+      topProducts,
+      topShoppers,
+    });
+  } catch (error) {
+    console.error('Error getting shopping analytics:', error);
     res.status(500).json({ message: 'Internal server error' });
   }
 });
