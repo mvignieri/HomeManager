@@ -1364,6 +1364,24 @@ app.get('/api/analytics/shopping', async (req, res) => {
   }
 });
 
+// Cron job endpoint for Vercel - auto-archive tasks and shopping items
+// Vercel cron jobs use GET requests
+app.get('/api/cron/archive', async (req, res) => {
+  const secret = req.headers['authorization'];
+  if (process.env.CRON_SECRET && secret !== `Bearer ${process.env.CRON_SECRET}`) {
+    return res.status(401).json({ message: 'Unauthorized' });
+  }
+  try {
+    const archivedTasks = await storage.autoArchiveTasks();
+    const archivedItems = await storage.autoArchiveShoppingItems();
+    console.log(`[cron] Archiviati ${archivedTasks} task e ${archivedItems} acquisti`);
+    res.json({ archivedTasks, archivedItems });
+  } catch (error) {
+    console.error('[cron] Errore archivazione:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
+
 // Error handler
 app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
   const status = err.status || err.statusCode || 500;
